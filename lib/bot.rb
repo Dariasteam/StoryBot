@@ -38,7 +38,7 @@ class Juego
           if(ini==false)
             ini = true
           else
-            @nodos << Nodo.new(contenido.sub(/<.>/,'').delete("\n").delete("\t"),opciones)
+            @nodos[contenido[contenido.index('<')+1..contenido.index('>')-1].to_i] = Nodo.new(contenido.sub(/<.>/,'').delete("\n").delete("\t"),opciones)
             opciones = []
           end
           contenido = line
@@ -69,12 +69,15 @@ class Juego
     @actual = @nodos[0]
     @actual.mostrar
   end
+  def getNodo
+    @nodos.index(@actual)
+  end
 end
 
 bot = TelegramBot.new(token: '143179136:AAHQKOCWGAbPvlL5loKqI2lyyVopktargM0')
 K = Juego.new
 bot.get_updates(fail_silently: true) do |message|
-  puts "@#{message.from.username}: #{message.text}"
+  puts "@#{message.from.username}: #{K.getNodo}"
   command = message.get_command_for(bot)
   message.reply do |reply|
     K.entrada(command)
@@ -87,7 +90,8 @@ bot.get_updates(fail_silently: true) do |message|
         reply.text = "#{message.from.first_name}, no tengo ni idea de lo que significa #{command.inspect}"
       end
     end
-    puts "Enviando #{reply.text.inspect} a @#{message.from.username}"
+    puts "Enviando a @#{message.from.username}: <#{K.getNodo}>"
+    #puts "Enviando #{reply.text.inspect} a @#{message.from.username}"
     reply.send_with(bot)
   end
 end
