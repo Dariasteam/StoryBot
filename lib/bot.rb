@@ -29,14 +29,14 @@ end
 
 class Juego
   def initialize(historia)
-    @Escenas = historia.Escenas
-    @actual = @Escenas[0]
+    @escenas = historia.escenas
+    @actual = @escenas[0]
   end
   def entrada(command)
     if(@actual!=nil)
       actual = @actual.entrada(command)
       if(actual!=nil)
-        @actual = @Escenas[actual]
+        @actual = @escenas[actual]
       else
         nil
       end
@@ -48,18 +48,18 @@ class Juego
     end
   end
   def reiniciar
-    @actual = @Escenas[0]
+    @actual = @escenas[0]
     @actual.mostrar
   end
   def getEscena
-    @Escenas.index(@actual)
+    @escenas.index(@actual)
   end
 end
 
 class Historia
-  attr_reader :Escenas
+  attr_reader :escenas, :titulo, :autor
   def initialize(uri)
-    @Escenas = []
+    @escenas = []
     puts "Cargando #{uri}"
     File.open(uri,"r") do |flujo|         #apertura en modo r del fichero
       opciones = []
@@ -74,12 +74,12 @@ class Historia
           else
             escena = Escena.new(contenido.sub(/<.>/,'').delete("\n").delete("\t"),opciones)
             numero = (contenido[contenido.index('<')+1..contenido.index('>')-1].to_i)
-            if(@Escenas[numero]==nil)
-              @Escenas[numero] = escena
+            if(@escenas[numero]==nil)
+              @escenas[numero] = escena
               escenasHuerfanas.delete(numero)
             else
               puts "Error, la escena #{numero} ya ha sido definida como:"+
-              "\n\n'#{@Escenas[numero].contenido}'"
+              "\n\n'#{@escenas[numero].contenido}'"
             end
             opciones = []
           end
@@ -89,21 +89,27 @@ class Historia
           line.slice! ("-")
           opciones << [line[0..line.index('@')-1],(line[line.index('@')+1..-1]).to_i]
           numero = (line[line.index('@')+1..-1]).to_i
-          if(@Escenas[numero] == nil && !escenasHuerfanas.include?(numero))
+          if(@escenas[numero] == nil && !escenasHuerfanas.include?(numero))
             escenasHuerfanas << numero
           end
+        elsif(line.match(/{*}/))
+          puts "El Título es #{line.delete('{').delete('}')}"
+          @titulo = line.delete('{').delete('}').delete("\n")
+        elsif(line.match(/#*#/))
+          puts "El Autor es #{line.delete('#')}"
+          @autor = line.delete('#').delete("\n")
         else
           contenido = contenido + line
         end
       end
       numero = (contenido[contenido.index('<')+1..contenido.index('>')-1].to_i)
       escenasHuerfanas.delete(numero)
-      @Escenas << Escena.new(contenido.sub(/<.>/,''),opciones)
+      @escenas << Escena.new(contenido.sub(/<.>/,''),opciones)
       #alertas y errores-----------------------------------------------------------------------------------
       if(escenasHuerfanas.size>0)
         puts "[!] Las escenas #{escenasHuerfanas} son referenciadas pero no están declaradas"
       end
-      puts "Generadas #{@Escenas.size} escenas\n\n"
+      puts "Generadas #{@escenas.size} escenas\n\n"
     end
   end
 end
@@ -126,7 +132,10 @@ bot.get_updates(fail_silently: true) do |message|
   message.reply do |reply|
     if(Partidas[message.from.username] == nil || command =~ /start/i)           #comprobar si ese jugador ya tiene una partida en curso
       puts " ~ @#{message.from.username} ha entrado al juego"
-      reply.text = "Tienes a elegir entre varias historias 1,2,3"
+      reply.text = "Tienes a elegir entre las siguientes historias:\n\n"
+      for i in 0..vHistorias.size - 1 do
+        reply.text << "#{i+1}\t #{vHistorias[i].titulo}; por #{vHistorias[i].autor} \n"
+      end
       Partidas[message.from.username] = false
     elsif (Partidas[message.from.username] == false)
       puts " ~ @#{message.from.username} ha elegido la historia #{command.inspect}"
