@@ -27,7 +27,7 @@ class Escena
   end
 end
 
-class Juego
+class Juego                                  #Uno por jugador, emplea la información de la clase Historia
   def initialize(historia)
     @escenas = historia.escenas
     @actual = @escenas[0]
@@ -56,7 +56,7 @@ class Juego
   end
 end
 
-class Historia
+class Historia                              #Una instancia por cada fichero en /Historias, contiene Escenas
   attr_reader :escenas, :titulo, :autor
   def initialize(uri)
     @escenas = []
@@ -73,7 +73,7 @@ class Historia
             ini = true
           else
             escena = Escena.new(contenido.sub(/<.>/,'').delete("\n").delete("\t"),opciones)
-            numero = (contenido[contenido.index('<')+1..contenido.index('>')-1].to_i)
+            numero = contenido[contenido.index('<')+1..contenido.index('>')-1].to_i
             if(@escenas[numero]==nil)
               @escenas[numero] = escena
               escenasHuerfanas.delete(numero)
@@ -104,12 +104,12 @@ class Historia
       end
       numero = (contenido[contenido.index('<')+1..contenido.index('>')-1].to_i)
       escenasHuerfanas.delete(numero)
-      @escenas << Escena.new(contenido.sub(/<.>/,''),opciones)
+      @escenas[numero] = Escena.new(contenido.sub(/<.>/,''),opciones)
       #alertas y errores-----------------------------------------------------------------------------------
       if(escenasHuerfanas.size>0)
         puts "[!] Las escenas #{escenasHuerfanas} son referenciadas pero no están declaradas"
       end
-      puts "Generadas #{@escenas.size} escenas\n\n"
+      puts "Generadas #{(@escenas - [nil]).count} escenas\n\n"
     end
   end
 end
@@ -122,6 +122,7 @@ def inicio(vector)
   text
 end
 
+puts "Iniciando servidor"
 #incialización del bot
 token = File.open("telegram.token","r").read.gsub(/\n/,"").delete('\n')
 bot = TelegramBot.new(token: token)
@@ -143,7 +144,7 @@ bot.get_updates(fail_silently: true) do |message|
       Partidas[message.from.username] = false
     elsif (Partidas[message.from.username] == false)
       if(command.to_i <= vHistorias.size && command.to_i > 0)
-        puts " ~ @#{message.from.username} ha elegido la historia #{command.inspect}"
+        puts " ~ @#{message.from.username} ha elegido la historia (#{command.to_i-1}) #{vHistorias[command.to_i-1].titulo}"
         Partidas[message.from.username] = Juego.new(vHistorias[command.to_i-1])
         reply.text = Partidas[message.from.username].mostrar
       else
@@ -152,14 +153,14 @@ bot.get_updates(fail_silently: true) do |message|
         reply.text = inicio(vHistorias)
       end
     elsif(Partidas[message.from.username] != false)
-      puts "-> @#{message.from.username}: #{Partidas[message.from.username].getEscena}"
+      puts " --> @#{message.from.username}: #{Partidas[message.from.username].getEscena}"
       command = message.get_command_for(bot)
       Partidas[message.from.username].entrada(command)
       if((reply.text = Partidas[message.from.username].mostrar)==nil)
         reply.send_with(bot)
         reply.text = "#{message.from.first_name}, no tengo ni idea de lo que significa #{command.inspect}"
       end
-      puts "Enviando a @#{message.from.username}: <#{Partidas[message.from.username].getEscena}>"
+      puts " <-- @#{message.from.username} <#{Partidas[message.from.username].getEscena}>"
     end
     reply.send_with(bot)
   end
