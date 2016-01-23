@@ -58,9 +58,10 @@ end
 
 class Historia
   attr_reader :Escenas
-  def initialize
+  def initialize(uri)
     @Escenas = []
-    File.open("../prueba.bot","r") do |flujo|         #apertura en modo r del fichero
+    puts "Cargando #{uri}"
+    File.open(uri,"r") do |flujo|         #apertura en modo r del fichero
       opciones = []
       ini = false
       contenido = ""
@@ -102,34 +103,44 @@ class Historia
       if(escenasHuerfanas.size>0)
         puts "[!] Las escenas #{escenasHuerfanas} son referenciadas pero no están declaradas"
       end
-      puts "Generadas #{@Escenas.size} escenas"
+      puts "Generadas #{@Escenas.size} escenas\n\n"
     end
-    puts "Juego cargado"
   end
 end
 
+
+
+
+#incialización del bot
 token = File.open("telegram.token","r").read.gsub(/\n/,"").delete('\n')
 bot = TelegramBot.new(token: token)
+#inicialización de las historias
 Partidas = {}
-Historias = []
-a = Historia.new
+vHistorias = []
+vHistorias[0] = Historia.new("Historias/prueba.bot")
+vHistorias[1] = Historia.new("Historias/ejemplo.bot")
+vHistorias[2] = Historia.new("Historias/Albert.bot")
+#incio del bot
 bot.get_updates(fail_silently: true) do |message|
-  if(Partidas[message.from.username] == nil) #comprobar si ese jugador ya tiene una partida en curso
-    Partidas[message.from.username] = Juego.new(a)
-  end
-  puts "-> @#{message.from.username}: #{Partidas[message.from.username].getEscena}"
   command = message.get_command_for(bot)
   message.reply do |reply|
-    Partidas[message.from.username].entrada(command)
-    case command
-    when /start/i
-      reply.text = Partidas[message.from.username].reiniciar
-    else
+    if(Partidas[message.from.username] == nil || command =~ /start/i)           #comprobar si ese jugador ya tiene una partida en curso
+      puts " ~ @#{message.from.username} ha entrado al juego"
+      reply.text = "Tienes a elegir entre varias historias 1,2,3"
+      Partidas[message.from.username] = false
+    elsif (Partidas[message.from.username] == false)
+      puts " ~ @#{message.from.username} ha elegido la historia #{command.inspect}"
+      Partidas[message.from.username] = Juego.new(vHistorias[command.to_i-1])
+      reply.text = Partidas[message.from.username].mostrar
+    elsif(Partidas[message.from.username] != false)
+      puts "-> @#{message.from.username}: #{Partidas[message.from.username].getEscena}"
+      command = message.get_command_for(bot)
+      Partidas[message.from.username].entrada(command)
       if((reply.text = Partidas[message.from.username].mostrar)==nil)
         reply.text = "#{message.from.first_name}, no tengo ni idea de lo que significa #{command.inspect}"
       end
+      puts "Enviando a @#{message.from.username}: <#{Partidas[message.from.username].getEscena}>"
     end
-    puts "Enviando a @#{message.from.username}: <#{Partidas[message.from.username].getEscena}>"
     reply.send_with(bot)
   end
 end

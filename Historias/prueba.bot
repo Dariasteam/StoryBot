@@ -1,0 +1,35 @@
+
+<0> Bienvenido a la_cueva_del_nano
+    Empiezas en una cueva así que... Empiezas en una cueva no?
+
+         -Entrar pal fondo @1
+         -Salir @2
+
+<1> Se te descubre un pasillo lleno de estalactitas y llegas a la típica bifurcación
+
+          -No me gustó la experiencia, vuelvo atrás @0
+          -Miras bien el lugar @3
+          -Me como un chicle @4
+
+<2> Te cae una estalactita en la cabeza y te mueres
+<3> en la bifurcación hay dos magos, uno tiene una chistera roja abierta por arriba, y es un esqueleto reanimado
+    además el mago tiene un puesto ambulante de armas de filo y, en el otro lado
+    hay un mago mendigo, con sus harapos, su perro y su instrumento musical, que es basicamente un
+    tubo de madera del que salen varios tubos de tela unidos a una caja de resonancia rígida, y el tipo sopla por el
+    tubo de madera y crea percusión desde dentro de la caja de resonancia
+
+-Te acercas al mago esqueleto @4
+-Te acercas al mago mendigo @5
+
+<4> El mago se da cuenta de tu presencia y se despereza, recoloca su chistera y te sonríe tras el mostrador lleno de afiladas espadas "Cómo de duro te gusta el metal, hijo?" pregunta, con la voz más cavernosa que jamás has escuchado.
+
+-Bastante duro @7
+-Nada duro @7
+-Un poco duro @7
+-Muy duro @7
+-Abres la bocaza lo más que puedes y gritas al máximo poder las palabras metal "metal pesado" @8
+
+<7> "Incorrecto!" grita el mago, y desde su pequeño puesto, miles de filos de diferentes tamaños salen despedidos hacia ti, clavándose alrededor de tu cuerpo y provocandote la muerte.
+
+<5> Estaba aún más bueno
+  -Te comes el último ya @6

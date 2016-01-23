@@ -1,0 +1,15 @@
+<0> Esto es la descripción de la escena 0
+    Esto sigue siéndolo, no cambiará hasta
+    que aparezca un guión
+
+      -Esta es la primera opción, lleva a 1 @1
+      -Esta es la segunda opción, lleva a 2 @2
+
+<1> Esto es la escena 1
+
+      -Opcion A, lleva a 0 @0
+      -Opcion B, lleva a 2 @2
+      -Opcion C, lleva a 3 @3
+
+<2> Esta es la escena 2, no tiene opciones
+<3> Esta es la escena 3, no tiene opciones
