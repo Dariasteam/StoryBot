@@ -65,6 +65,8 @@ class Juego
           contenido = contenido + line
         end
       end
+      numero = (contenido[contenido.index('<')+1..contenido.index('>')-1].to_i)
+      nodosHuerfanos.delete(numero)
       @nodos << Nodo.new(contenido.sub(/<.>/,''),opciones)
       #alertas y errores-----------------------------------------------------------------------------------
       if(nodosHuerfanos.size>0)
@@ -76,11 +78,13 @@ class Juego
     puts "Servidor listo"
   end
   def entrada(command)
-    actual = @actual.entrada(command)
-    if(actual!=nil)
-      @actual = @nodos[actual]
-    else
-      nil
+    if(@actual!=nil)
+      actual = @actual.entrada(command)
+      if(actual!=nil)
+        @actual = @nodos[actual]
+      else
+        nil
+      end
     end
   end
   def mostrar
@@ -97,7 +101,8 @@ class Juego
   end
 end
 
-bot = TelegramBot.new(token: '143179136:AAHQKOCWGAbPvlL5loKqI2lyyVopktargM0')
+token = File.open("telegram.token","r").read.gsub(/\n/,"").delete('\n')
+bot = TelegramBot.new(token: token)
 Partidas = {}
 bot.get_updates(fail_silently: true) do |message|
   if(Partidas[message.from.username] == nil) #comprobar si ese jugador ya tiene una partida en curso
