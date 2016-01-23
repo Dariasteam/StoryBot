@@ -93,10 +93,10 @@ class Historia
             escenasHuerfanas << numero
           end
         elsif(line.match(/{*}/))
-          puts "El Título es #{line.delete('{').delete('}')}"
+          #puts "El Título es #{line.delete('{').delete('}')}"
           @titulo = line.delete('{').delete('}').delete("\n")
         elsif(line.match(/#*#/))
-          puts "El Autor es #{line.delete('#')}"
+          #puts "El Autor es #{line.delete('#')}"
           @autor = line.delete('#').delete("\n")
         else
           contenido = contenido + line
@@ -114,8 +114,13 @@ class Historia
   end
 end
 
-
-
+def inicio(vector)
+  text = "Tienes a elegir entre las siguientes historias:\n\n"
+  for i in 0..vector.size - 1 do
+    text << "#{i+1}\t #{vector[i].titulo}, por #{vector[i].autor} \n"
+  end
+  text
+end
 
 #incialización del bot
 token = File.open("telegram.token","r").read.gsub(/\n/,"").delete('\n')
@@ -123,29 +128,35 @@ bot = TelegramBot.new(token: token)
 #inicialización de las historias
 Partidas = {}
 vHistorias = []
-vHistorias[0] = Historia.new("Historias/prueba.bot")
-vHistorias[1] = Historia.new("Historias/ejemplo.bot")
-vHistorias[2] = Historia.new("Historias/Albert.bot")
+index = 0
+while(File.exist?("Historias/#{index}.bot"))
+  vHistorias[index] = Historia.new("Historias/#{index}.bot")
+  index = index +1
+end
 #incio del bot
 bot.get_updates(fail_silently: true) do |message|
   command = message.get_command_for(bot)
   message.reply do |reply|
     if(Partidas[message.from.username] == nil || command =~ /start/i)           #comprobar si ese jugador ya tiene una partida en curso
       puts " ~ @#{message.from.username} ha entrado al juego"
-      reply.text = "Tienes a elegir entre las siguientes historias:\n\n"
-      for i in 0..vHistorias.size - 1 do
-        reply.text << "#{i+1}\t #{vHistorias[i].titulo}; por #{vHistorias[i].autor} \n"
-      end
+      reply.text = inicio(vHistorias)
       Partidas[message.from.username] = false
     elsif (Partidas[message.from.username] == false)
-      puts " ~ @#{message.from.username} ha elegido la historia #{command.inspect}"
-      Partidas[message.from.username] = Juego.new(vHistorias[command.to_i-1])
-      reply.text = Partidas[message.from.username].mostrar
+      if(command.to_i <= vHistorias.size && command.to_i > 0)
+        puts " ~ @#{message.from.username} ha elegido la historia #{command.inspect}"
+        Partidas[message.from.username] = Juego.new(vHistorias[command.to_i-1])
+        reply.text = Partidas[message.from.username].mostrar
+      else
+        reply.text = "#{message.from.first_name}, no tengo ni idea de lo que significa #{command.inspect}"
+        reply.send_with(bot)
+        reply.text = inicio(vHistorias)
+      end
     elsif(Partidas[message.from.username] != false)
       puts "-> @#{message.from.username}: #{Partidas[message.from.username].getEscena}"
       command = message.get_command_for(bot)
       Partidas[message.from.username].entrada(command)
       if((reply.text = Partidas[message.from.username].mostrar)==nil)
+        reply.send_with(bot)
         reply.text = "#{message.from.first_name}, no tengo ni idea de lo que significa #{command.inspect}"
       end
       puts "Enviando a @#{message.from.username}: <#{Partidas[message.from.username].getEscena}>"
