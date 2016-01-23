@@ -1,7 +1,7 @@
 require "bot/version"
 require 'telegram_bot'
 
-class Nodo
+class Escena
   attr_reader :contenido
   def initialize(contenido, opciones = [])
     @contenido = contenido
@@ -28,60 +28,15 @@ class Nodo
 end
 
 class Juego
-  def initialize
-    @nodos = []
-    File.open("../prueba.bot","r") do |flujo|         #apertura en modo r del fichero
-      opciones = []
-      ini = false
-      contenido = ""
-      nodosHuerfanos = []
-      while line = flujo.gets do
-        #operaciones con una nueva escena---------------------------------------------------------------
-        if(line.match(/<*>/))
-          if(ini==false)
-            ini = true
-          else
-            nodo = Nodo.new(contenido.sub(/<.>/,'').delete("\n").delete("\t"),opciones)
-            numero = (contenido[contenido.index('<')+1..contenido.index('>')-1].to_i)
-            if(@nodos[numero]==nil)
-              @nodos[numero] = nodo
-              nodosHuerfanos.delete(numero)
-            else
-              puts "Error, la escena #{numero} ya ha sido definida como:"+
-              "\n\n'#{@nodos[numero].contenido}'"
-            end
-            opciones = []
-          end
-          contenido = line
-        #operaciones con las opciones de una escena--------------------------------------------------------
-        elsif(line.match(/-/))
-          line.slice! ("-")
-          opciones << [line[0..line.index('@')-1],(line[line.index('@')+1..-1]).to_i]
-          numero = (line[line.index('@')+1..-1]).to_i
-          if(@nodos[numero] == nil && !nodosHuerfanos.include?(numero))
-            nodosHuerfanos << numero
-          end
-        else
-          contenido = contenido + line
-        end
-      end
-      numero = (contenido[contenido.index('<')+1..contenido.index('>')-1].to_i)
-      nodosHuerfanos.delete(numero)
-      @nodos << Nodo.new(contenido.sub(/<.>/,''),opciones)
-      #alertas y errores-----------------------------------------------------------------------------------
-      if(nodosHuerfanos.size>0)
-        puts "[!] Las escenas #{nodosHuerfanos} son referenciadas pero no están declaradas"
-      end
-      puts "Generadas #{@nodos.size} escenas"
-    end
-    @actual = @nodos[0]
-    puts "Servidor listo"
+  def initialize(historia)
+    @Escenas = historia.Escenas
+    @actual = @Escenas[0]
   end
   def entrada(command)
     if(@actual!=nil)
       actual = @actual.entrada(command)
       if(actual!=nil)
-        @actual = @nodos[actual]
+        @actual = @Escenas[actual]
       else
         nil
       end
@@ -93,22 +48,76 @@ class Juego
     end
   end
   def reiniciar
-    @actual = @nodos[0]
+    @actual = @Escenas[0]
     @actual.mostrar
   end
-  def getNodo
-    @nodos.index(@actual)
+  def getEscena
+    @Escenas.index(@actual)
+  end
+end
+
+class Historia
+  attr_reader :Escenas
+  def initialize
+    @Escenas = []
+    File.open("../prueba.bot","r") do |flujo|         #apertura en modo r del fichero
+      opciones = []
+      ini = false
+      contenido = ""
+      escenasHuerfanas = []
+      while line = flujo.gets do
+        #operaciones con una nueva escena---------------------------------------------------------------
+        if(line.match(/<*>/))
+          if(ini==false)
+            ini = true
+          else
+            escena = Escena.new(contenido.sub(/<.>/,'').delete("\n").delete("\t"),opciones)
+            numero = (contenido[contenido.index('<')+1..contenido.index('>')-1].to_i)
+            if(@Escenas[numero]==nil)
+              @Escenas[numero] = escena
+              escenasHuerfanas.delete(numero)
+            else
+              puts "Error, la escena #{numero} ya ha sido definida como:"+
+              "\n\n'#{@Escenas[numero].contenido}'"
+            end
+            opciones = []
+          end
+          contenido = line
+        #operaciones con las opciones de una escena--------------------------------------------------------
+        elsif(line.match(/-/))
+          line.slice! ("-")
+          opciones << [line[0..line.index('@')-1],(line[line.index('@')+1..-1]).to_i]
+          numero = (line[line.index('@')+1..-1]).to_i
+          if(@Escenas[numero] == nil && !escenasHuerfanas.include?(numero))
+            escenasHuerfanas << numero
+          end
+        else
+          contenido = contenido + line
+        end
+      end
+      numero = (contenido[contenido.index('<')+1..contenido.index('>')-1].to_i)
+      escenasHuerfanas.delete(numero)
+      @Escenas << Escena.new(contenido.sub(/<.>/,''),opciones)
+      #alertas y errores-----------------------------------------------------------------------------------
+      if(escenasHuerfanas.size>0)
+        puts "[!] Las escenas #{escenasHuerfanas} son referenciadas pero no están declaradas"
+      end
+      puts "Generadas #{@Escenas.size} escenas"
+    end
+    puts "Juego cargado"
   end
 end
 
 token = File.open("telegram.token","r").read.gsub(/\n/,"").delete('\n')
 bot = TelegramBot.new(token: token)
 Partidas = {}
+Historias = []
+a = Historia.new
 bot.get_updates(fail_silently: true) do |message|
   if(Partidas[message.from.username] == nil) #comprobar si ese jugador ya tiene una partida en curso
-    Partidas[message.from.username] = Juego.new
+    Partidas[message.from.username] = Juego.new(a)
   end
-  puts "-> @#{message.from.username}: #{Partidas[message.from.username].getNodo}"
+  puts "-> @#{message.from.username}: #{Partidas[message.from.username].getEscena}"
   command = message.get_command_for(bot)
   message.reply do |reply|
     Partidas[message.from.username].entrada(command)
@@ -120,7 +129,7 @@ bot.get_updates(fail_silently: true) do |message|
         reply.text = "#{message.from.first_name}, no tengo ni idea de lo que significa #{command.inspect}"
       end
     end
-    puts "Enviando a @#{message.from.username}: <#{Partidas[message.from.username].getNodo}>"
+    puts "Enviando a @#{message.from.username}: <#{Partidas[message.from.username].getEscena}>"
     reply.send_with(bot)
   end
 end
