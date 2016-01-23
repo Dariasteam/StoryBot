@@ -114,7 +114,32 @@ class Historia                              #Una instancia por cada fichero en /
   end
 end
 
-def inicio(vector)
+def inicio
+  "1 Jugar historias\n2 Enviar historia\n"
+end
+
+def ejemplo
+  "#Autor#
+  {Nombre_Historia}
+
+  <0> Esto es la descripción de la escena 0
+      Esto sigue siéndolo, no cambiará hasta
+      que aparezca un guión
+
+        -Esta es la primera opción, lleva a 1 @1
+        -Esta es la segunda opción, lleva a 2 @2
+
+  <1> Esto es la escena 1
+
+        -Opcion A, lleva a 0 @0
+        -Opcion B, lleva a 2 @2
+        -Opcion C, lleva a 3 @3
+
+  <2> Esta es la escena 2, no tiene opciones
+  <3> Esta es la escena 3, no tiene opciones"
+end
+
+def inicioHistorias(vector)
   text = "Tienes a elegir entre las siguientes historias:\n\n"
   for i in 0..vector.size - 1 do
     text << "#{i+1}\t #{vector[i].titulo}, por #{vector[i].autor} \n"
@@ -138,11 +163,27 @@ end
 bot.get_updates(fail_silently: true) do |message|
   command = message.get_command_for(bot)
   message.reply do |reply|
-    if(Partidas[message.from.username] == nil || command =~ /start/i)           #comprobar si ese jugador ya tiene una partida en curso
-      puts " ~ @#{message.from.username} ha entrado al juego"
-      reply.text = inicio(vHistorias)
-      Partidas[message.from.username] = false
-    elsif (Partidas[message.from.username] == false)
+    if(Partidas[message.from.username] == nil || command =~ /start/i)
+      puts " ~ @#{message.from.username} se ha unido"
+      reply.text = inicio
+      Partidas[message.from.username] = "esperandomodo"
+    elsif(Partidas[message.from.username] == "esperandomodo")
+      if(command.to_i == 1)
+        puts " ~ @#{message.from.username} ha elegido Jugar"
+        Partidas[message.from.username] = "esperandojuego"
+        reply.text = inicioHistorias(vHistorias)
+      elsif(command.to_i == 2)
+        puts " ~ @#{message.from.username} ha elegido Crear"
+        Partidas[message.from.username] = "creando"
+        reply.text = "Envíame un mensaje con el formato siguiente: "
+        reply.send_with(bot)
+        reply.text = ejemplo
+      else
+        reply.text = "#{message.from.first_name}, no tengo ni idea de lo que significa #{command.inspect}"
+        reply.send_with(bot)
+        reply.text = inicio
+      end
+    elsif(Partidas[message.from.username] == "esperandojuego")
       if(command.to_i <= vHistorias.size && command.to_i > 0)
         puts " ~ @#{message.from.username} ha elegido la historia (#{command.to_i-1}) #{vHistorias[command.to_i-1].titulo}"
         Partidas[message.from.username] = Juego.new(vHistorias[command.to_i-1])
@@ -152,7 +193,13 @@ bot.get_updates(fail_silently: true) do |message|
         reply.send_with(bot)
         reply.text = inicio(vHistorias)
       end
-    elsif(Partidas[message.from.username] != false)
+    elsif(Partidas[message.from.username] == "creando")
+      File.open("Historias/#{vHistorias.size}.bot", "w") do |f|
+        f.write(command)
+      end
+      puts " ~ @#{message.from.username} ha creado una nueva historia"
+      reply.text = "Tu historia ha sido creada correctamente"
+    elsif(Partidas[message.from.username]!= nil)
       puts " --> @#{message.from.username}: #{Partidas[message.from.username].getEscena}"
       command = message.get_command_for(bot)
       Partidas[message.from.username].entrada(command)
