@@ -30,12 +30,13 @@ end
 class Juego
   def initialize
     @nodos = []
-    File.open("../prueba.bot","r") do |flujo|
+    File.open("../prueba.bot","r") do |flujo|         #apertura en modo r del fichero
       opciones = []
       ini = false
       contenido = ""
       nodosHuerfanos = []
       while line = flujo.gets do
+        #operaciones con una nueva escena---------------------------------------------------------------
         if(line.match(/<*>/))
           if(ini==false)
             ini = true
@@ -52,6 +53,7 @@ class Juego
             opciones = []
           end
           contenido = line
+        #operaciones con las opciones de una escena--------------------------------------------------------
         elsif(line.match(/-/))
           line.slice! ("-")
           opciones << [line[0..line.index('@')-1],(line[line.index('@')+1..-1]).to_i]
@@ -64,12 +66,14 @@ class Juego
         end
       end
       @nodos << Nodo.new(contenido.sub(/<.>/,''),opciones)
+      #alertas y errores-----------------------------------------------------------------------------------
       if(nodosHuerfanos.size>0)
         puts "[!] Las escenas #{nodosHuerfanos} son referenciadas pero no están declaradas"
       end
       puts "Generadas #{@nodos.size} escenas"
     end
     @actual = @nodos[0]
+    puts "Servidor listo"
   end
   def entrada(command)
     actual = @actual.entrada(command)
@@ -80,7 +84,9 @@ class Juego
     end
   end
   def mostrar
-    @actual.mostrar
+    if(@actual!= nil)
+      @actual.mostrar
+    end
   end
   def reiniciar
     @actual = @nodos[0]
@@ -92,21 +98,24 @@ class Juego
 end
 
 bot = TelegramBot.new(token: '143179136:AAHQKOCWGAbPvlL5loKqI2lyyVopktargM0')
-K = Juego.new
+Partidas = {}
 bot.get_updates(fail_silently: true) do |message|
-  puts "@#{message.from.username}: #{K.getNodo}"
+  if(Partidas[message.from.username] == nil) #comprobar si ese jugador ya tiene una partida en curso
+    Partidas[message.from.username] = Juego.new
+  end
+  puts "-> @#{message.from.username}: #{Partidas[message.from.username].getNodo}"
   command = message.get_command_for(bot)
   message.reply do |reply|
-    K.entrada(command)
+    Partidas[message.from.username].entrada(command)
     case command
     when /start/i
-      reply.text = K.reiniciar
+      reply.text = Partidas[message.from.username].reiniciar
     else
-      if((reply.text = K.mostrar)==nil)
+      if((reply.text = Partidas[message.from.username].mostrar)==nil)
         reply.text = "#{message.from.first_name}, no tengo ni idea de lo que significa #{command.inspect}"
       end
     end
-    puts "Enviando a @#{message.from.username}: <#{K.getNodo}>"
+    puts "Enviando a @#{message.from.username}: <#{Partidas[message.from.username].getNodo}>"
     reply.send_with(bot)
   end
 end
