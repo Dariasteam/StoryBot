@@ -2,6 +2,7 @@ require "bot/version"
 require 'telegram_bot'
 
 class Nodo
+  attr_reader :contenido
   def initialize(contenido, opciones = [])
     @contenido = contenido
     @opciones = opciones
@@ -33,24 +34,40 @@ class Juego
       opciones = []
       ini = false
       contenido = ""
+      nodosHuerfanos = []
       while line = flujo.gets do
         if(line.match(/<*>/))
           if(ini==false)
             ini = true
           else
-            @nodos[contenido[contenido.index('<')+1..contenido.index('>')-1].to_i] = Nodo.new(contenido.sub(/<.>/,'').delete("\n").delete("\t"),opciones)
+            nodo = Nodo.new(contenido.sub(/<.>/,'').delete("\n").delete("\t"),opciones)
+            numero = (contenido[contenido.index('<')+1..contenido.index('>')-1].to_i)
+            if(@nodos[numero]==nil)
+              @nodos[numero] = nodo
+              nodosHuerfanos.delete(numero)
+            else
+              puts "Error, la escena #{numero} ya ha sido definida como:"+
+              "\n\n'#{@nodos[numero].contenido}'"
+            end
             opciones = []
           end
           contenido = line
         elsif(line.match(/-/))
           line.slice! ("-")
           opciones << [line[0..line.index('@')-1],(line[line.index('@')+1..-1]).to_i]
+          numero = (line[line.index('@')+1..-1]).to_i
+          if(@nodos[numero] == nil && !nodosHuerfanos.include?(numero))
+            nodosHuerfanos << numero
+          end
         else
           contenido = contenido + line
         end
       end
       @nodos << Nodo.new(contenido.sub(/<.>/,''),opciones)
-      puts "generados #{@nodos.size}"
+      if(nodosHuerfanos.size>0)
+        puts "[!] Las escenas #{nodosHuerfanos} son referenciadas pero no están declaradas"
+      end
+      puts "Generadas #{@nodos.size} escenas"
     end
     @actual = @nodos[0]
   end
@@ -86,12 +103,10 @@ bot.get_updates(fail_silently: true) do |message|
       reply.text = K.reiniciar
     else
       if((reply.text = K.mostrar)==nil)
-        puts "aqui nil"
         reply.text = "#{message.from.first_name}, no tengo ni idea de lo que significa #{command.inspect}"
       end
     end
     puts "Enviando a @#{message.from.username}: <#{K.getNodo}>"
-    #puts "Enviando #{reply.text.inspect} a @#{message.from.username}"
     reply.send_with(bot)
   end
 end
