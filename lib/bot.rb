@@ -13,10 +13,10 @@ class Escena
   end
   def mostrar
     mensaje = @contenido + "\n\n"
-      for i in 0..@opciones.size - 1 do
-        mensaje = mensaje + "#{i+1} #{@opciones[i][0].to_s}\n"
-      end
-      mensaje
+    for i in 0..@opciones.size - 1 do
+      mensaje = mensaje + "#{i+1} #{@opciones[i][0].to_s}\n"
+    end
+    mensaje
   end
   def entrada(command)
     if((command.to_i) - 1 == -1)
@@ -44,7 +44,14 @@ class Juego                                  #Uno por jugador, emplea la informa
   end
   def mostrar
     if(@actual!= nil)
-      @actual.mostrar
+      texto = @actual.mostrar
+      if(texto.include?("@"))
+        numero = texto[texto.index('@')+1..-1].to_i
+        texto = texto[0..texto.index('@')-1]
+        @actual = @escenas[numero]
+        texto << "\n#{@actual.mostrar}"
+      end
+      texto
     end
   end
   def reiniciar
@@ -52,14 +59,14 @@ class Juego                                  #Uno por jugador, emplea la informa
     @actual.mostrar
   end
   def getEscena
-    @escenas.index(@actual)
+    @escenas.key(@actual)
   end
 end
 
 class Historia                              #Una instancia por cada fichero en /Historias, contiene Escenas
   attr_reader :escenas, :titulo, :autor
   def initialize(uri)
-    @escenas = []
+    @escenas = {}
     puts "Cargando #{uri}"
     File.open(uri,"r") do |flujo|         #apertura en modo r del fichero
       opciones = []
@@ -72,7 +79,8 @@ class Historia                              #Una instancia por cada fichero en /
           if(ini==false)
             ini = true
           else
-            escena = Escena.new(contenido.sub(/<.>/,'').delete("\n").delete("\t"),opciones)
+            texto = contenido.sub(/<.>/,'').delete("\n").delete("\t")
+            escena = Escena.new(texto,opciones)
             numero = contenido[contenido.index('<')+1..contenido.index('>')-1].to_i
             if(@escenas[numero]==nil)
               @escenas[numero] = escena
@@ -82,6 +90,7 @@ class Historia                              #Una instancia por cada fichero en /
               "\n\n'#{@escenas[numero].contenido}'"
             end
             opciones = []
+            salto = nil
           end
           contenido = line
         #operaciones con las opciones de una escena--------------------------------------------------------
@@ -102,14 +111,22 @@ class Historia                              #Una instancia por cada fichero en /
           contenido = contenido + line
         end
       end
-      numero = (contenido[contenido.index('<')+1..contenido.index('>')-1].to_i)
-      escenasHuerfanas.delete(numero)
-      @escenas[numero] = Escena.new(contenido.sub(/<.>/,''),opciones)
+      if(contenido.match(/<*>/))
+        numero = (contenido[contenido.index('<')+1..contenido.index('>')-1].to_i)
+        escenasHuerfanas.delete(numero)
+        @escenas[numero] = Escena.new(contenido.sub(/<.>/,''),opciones)
+      end
       #alertas y errores-----------------------------------------------------------------------------------
       if(escenasHuerfanas.size>0)
         puts "[!] Las escenas #{escenasHuerfanas} son referenciadas pero no están declaradas"
       end
-      puts "Generadas #{(@escenas - [nil]).count} escenas\n\n"
+      if(@titulo == nil)
+        puts "[!] La historia no tiene título"
+      end
+      if(@autor == nil)
+        puts "[!] La historia no tiene autor"
+      end
+      puts "Generadas #{@escenas.length} escenas\n\n"
     end
   end
 end
@@ -135,8 +152,8 @@ def ejemplo
         -Opcion B, lleva a 2 @2
         -Opcion C, lleva a 3 @3
 
-  <2> Esta es la escena 2, no tiene opciones
-  <3> Esta es la escena 3, no tiene opciones"
+  <2> Esta es la escena 2, no tiene opciones, pero lleva a 3 siempre @3
+  <3> Esta es la escena 3, no tiene opciones y se repetirá siempre"
 end
 
 def inicioHistorias(vector)
@@ -199,6 +216,7 @@ bot.get_updates(fail_silently: true) do |message|
       end
       puts " ~ @#{message.from.username} ha creado una nueva historia"
       reply.text = "Tu historia ha sido creada correctamente"
+      vHistorias << Historia.new("Historias/#{vHistorias.size}.bot")
     elsif(Partidas[message.from.username]!= nil)
       puts " --> @#{message.from.username}: #{Partidas[message.from.username].getEscena}"
       command = message.get_command_for(bot)
