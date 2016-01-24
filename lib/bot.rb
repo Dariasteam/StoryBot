@@ -63,71 +63,81 @@ class Juego                                  #Uno por jugador, emplea la informa
   end
 end
 
+def analizador(flujo)
+  opciones = []
+  ini = false
+  contenido = ""
+  escenasHuerfanas = []
+  @escenas = {}
+  errores = ""
+  flujo.each_line do |line|
+    #operaciones con una nueva escena---------------------------------------------------------------
+    if(line.match(/<*>/))
+      if(ini==false)
+        ini = true
+      else
+        texto = contenido.sub(/<.>/,'').delete("\n").delete("\t")
+        escena = Escena.new(texto,opciones)
+        numero = contenido[contenido.index('<')+1..contenido.index('>')-1].to_i
+        if(@escenas[numero]==nil)
+          @escenas[numero] = escena
+          escenasHuerfanas.delete(numero)
+        else
+          puts "Error, la escena #{numero} ya ha sido definida como:"+
+          "\n\n'#{@escenas[numero].contenido}'"
+        end
+        opciones = []
+        salto = nil
+      end
+      contenido = line
+    #operaciones con las opciones de una escena--------------------------------------------------------
+    elsif(line.match(/-/))
+      line.slice! ("-")
+      opciones << [line[0..line.index('@')-1],(line[line.index('@')+1..-1]).to_i]
+      numero = (line[line.index('@')+1..-1]).to_i
+      if(@escenas[numero] == nil && !escenasHuerfanas.include?(numero))
+        escenasHuerfanas << numero
+      end
+    elsif(line.match(/{*}/))
+      #puts "El Título es #{line.delete('{').delete('}')}"
+      @titulo = line.delete('{').delete('}').delete("\n")
+    elsif(line.match(/#*#/))
+      #puts "El Autor es #{line.delete('#')}"
+      @autor = line.delete('#').delete("\n")
+    else
+      contenido = contenido + line
+    end
+  end
+  if(contenido.match(/<*>/))
+    numero = (contenido[contenido.index('<')+1..contenido.index('>')-1].to_i)
+    escenasHuerfanas.delete(numero)
+    @escenas[numero] = Escena.new(contenido.sub(/<.>/,''),opciones)
+  end
+  #alertas y errores-----------------------------------------------------------------------------------
+  if(escenasHuerfanas.size>0)
+    errores << "[!] Las escenas #{escenasHuerfanas} son referenciadas pero no están declaradas\n"
+  end
+  if(@titulo == nil)
+    errores << "[!] La historia no tiene título\n"
+  end
+  if(@autor == nil)
+    errores << "[!] La historia no tiene autor\n"
+  end
+  if(@escenas.length < 1)
+    errores << "[!] La historia debe tener al menos una escena\n"
+  end
+  puts "Generadas #{@escenas.length} escenas\n\n"
+  if(errores!="")
+    errores
+  else
+
+  end
+end
+
 class Historia                              #Una instancia por cada fichero en /Historias, contiene Escenas
   attr_reader :escenas, :titulo, :autor
   def initialize(uri)
-    @escenas = {}
-    puts "Cargando #{uri}"
-    File.open(uri,"r") do |flujo|         #apertura en modo r del fichero
-      opciones = []
-      ini = false
-      contenido = ""
-      escenasHuerfanas = []
-      while line = flujo.gets do
-        #operaciones con una nueva escena---------------------------------------------------------------
-        if(line.match(/<*>/))
-          if(ini==false)
-            ini = true
-          else
-            texto = contenido.sub(/<.>/,'').delete("\n").delete("\t")
-            escena = Escena.new(texto,opciones)
-            numero = contenido[contenido.index('<')+1..contenido.index('>')-1].to_i
-            if(@escenas[numero]==nil)
-              @escenas[numero] = escena
-              escenasHuerfanas.delete(numero)
-            else
-              puts "Error, la escena #{numero} ya ha sido definida como:"+
-              "\n\n'#{@escenas[numero].contenido}'"
-            end
-            opciones = []
-            salto = nil
-          end
-          contenido = line
-        #operaciones con las opciones de una escena--------------------------------------------------------
-        elsif(line.match(/-/))
-          line.slice! ("-")
-          opciones << [line[0..line.index('@')-1],(line[line.index('@')+1..-1]).to_i]
-          numero = (line[line.index('@')+1..-1]).to_i
-          if(@escenas[numero] == nil && !escenasHuerfanas.include?(numero))
-            escenasHuerfanas << numero
-          end
-        elsif(line.match(/{*}/))
-          #puts "El Título es #{line.delete('{').delete('}')}"
-          @titulo = line.delete('{').delete('}').delete("\n")
-        elsif(line.match(/#*#/))
-          #puts "El Autor es #{line.delete('#')}"
-          @autor = line.delete('#').delete("\n")
-        else
-          contenido = contenido + line
-        end
-      end
-      if(contenido.match(/<*>/))
-        numero = (contenido[contenido.index('<')+1..contenido.index('>')-1].to_i)
-        escenasHuerfanas.delete(numero)
-        @escenas[numero] = Escena.new(contenido.sub(/<.>/,''),opciones)
-      end
-      #alertas y errores-----------------------------------------------------------------------------------
-      if(escenasHuerfanas.size>0)
-        puts "[!] Las escenas #{escenasHuerfanas} son referenciadas pero no están declaradas"
-      end
-      if(@titulo == nil)
-        puts "[!] La historia no tiene título"
-      end
-      if(@autor == nil)
-        puts "[!] La historia no tiene autor"
-      end
-      puts "Generadas #{@escenas.length} escenas\n\n"
-    end
+    analizador(uri)
   end
 end
 
@@ -173,7 +183,7 @@ Partidas = {}
 vHistorias = []
 index = 0
 while(File.exist?("Historias/#{index}.bot"))
-  vHistorias[index] = Historia.new("Historias/#{index}.bot")
+  vHistorias[index] = Historia.new(File.read("Historias/#{index}.bot"))
   index = index +1
 end
 #incio del bot
@@ -211,12 +221,17 @@ bot.get_updates(fail_silently: true) do |message|
         reply.text = inicio(vHistorias)
       end
     elsif(Partidas[message.from.username] == "creando")
-      File.open("Historias/#{vHistorias.size}.bot", "w") do |f|
-        f.write(command)
+      aux = analizador(command)
+      if(aux.is_a? String)
+        reply.text = aux
+      else
+        puts " ~ @#{message.from.username} ha creado una nueva historia"
+        reply.text = "Tu historia ha sido creada correctamente"
+        File.open("Historias/#{vHistorias.size}.bot", "w") do |f|
+          f.write(command)
+        end
+        vHistorias << Historia.new(command)
       end
-      puts " ~ @#{message.from.username} ha creado una nueva historia"
-      reply.text = "Tu historia ha sido creada correctamente"
-      vHistorias << Historia.new("Historias/#{vHistorias.size}.bot")
     elsif(Partidas[message.from.username]!= nil)
       puts " --> @#{message.from.username}: #{Partidas[message.from.username].getEscena}"
       command = message.get_command_for(bot)
