@@ -155,7 +155,6 @@ def analizador(flujo)
       @escenas[indice] = Escena.new(contenido.partition(/<*>/).last,opciones)
       escenasHuerfanas.delete(indice)
     end
-    puts "#{indice} asdasd"
   end
   #alertas y errores-----------------------------------------------------------------------------------
   if(escenasHuerfanas.size>0)
@@ -186,7 +185,7 @@ class Historia                              #Una instancia por cada fichero en /
 end
 
 def inicio
-  "1 Jugar historias\n2 Enviar historia\n"
+  "1 Jugar historias\n2 Enviar historia\n3 Editar historia"
 end
 
 def ejemplo
@@ -218,6 +217,8 @@ def inicioHistorias(vector)
   text
 end
 
+
+
 puts "Iniciando servidor"
 #incialización del bot
 token = File.open("telegram.token","r").read.gsub(/\n/,"").delete('\n')
@@ -225,11 +226,23 @@ bot = TelegramBot.new(token: token)
 #inicialización de las historias
 Partidas = {}
 vHistorias = []
+hHistorias = {}
 index = 0
 while(File.exist?("Historias/#{index}.bot"))
   puts "Cargado 'Historias/#{index}.bot'"
   vHistorias[index] = Historia.new(File.read("Historias/#{index}.bot"))
   index = index + 1
+end
+bool = true
+aux = ""
+
+File.open("Historias/master", "r").each do |line|
+  if(bool)
+    aux = line.delete("\n")
+  else
+    hHistorias[aux] = line.to_i
+  end
+  bool = !bool
 end
 #incio del bot
 bot.get_updates(fail_silently: true) do |message|
@@ -250,6 +263,9 @@ bot.get_updates(fail_silently: true) do |message|
         reply.text = "Envíame un mensaje con el formato siguiente: "
         reply.send_with(bot)
         reply.text = ejemplo
+      elsif(command.to_i == 3)
+        reply.text = "Envíame la clave de tu historia"
+        Partidas[message.from.username] = "editando"
       else
         reply.text = "#{message.from.first_name}, no tengo ni idea de lo que significa #{command.inspect}"
         reply.send_with(bot)
@@ -271,12 +287,64 @@ bot.get_updates(fail_silently: true) do |message|
         reply.text = aux + "\n\n Prueba de nuevo"
       else
         puts " ~ @#{message.from.username} ha creado una nueva historia"
-        reply.text = "¡Felicidades! Tu historia ha sido creada correctamente"
         File.open("Historias/#{vHistorias.size}.bot", "w") do |f|
           f.write(command)
         end
+        pass = (0...50).map { ('a'..'z').to_a[rand(26)] }.join
+        File.open("Historias/master", "a") do |f|
+          f.write(pass)
+          f.write("\n#{vHistorias.size}\n")
+        end
+        reply.text = "¡Felicidades! Tu historia ha sido creada correctamente."+
+                      "\nGuarda esta clave para poder editarla más adelante: "
+        reply.send_with(bot)
+        reply.text = pass
+        hHistorias[pass] = vHistorias.count
+
+        string = ""
+        for i in 0..vHistorias.count-1 do
+          string << hHistorias.key(i) + "\n#{i}\n"
+        end
+        File.open("Historias/master", "w") do |f|
+          f.write(string)
+        end
+
+
         vHistorias << Historia.new(command)
         Partidas[message.from.username] = "esperandomodo"
+      end
+    elsif(Partidas[message.from.username]== "editando")
+      if(hHistorias[command]==nil)
+        reply.text = "[!] La clave no es correcta"
+      else
+        reply.text = "Recuperando historia\n"
+        reply.send_with(bot)
+        reply.text = File.read("Historias/#{hHistorias[command]}.bot")
+        Partidas[message.from.username] = hHistorias[command].to_i
+      end
+    elsif(Partidas[message.from.username].is_a? Integer)
+      aux = analizador(command)
+      if(aux.is_a? String)
+        reply.text = aux + "\n\n Prueba de nuevo"
+      else
+        puts " ~ @#{message.from.username} ha editado la historia"
+        File.open("Historias/#{Partidas[message.from.username]}.bot", "w") do |f|
+          f.write(command)
+        end
+        reply.text = "Has editado tu historia correctamente"
+        reply.send_with(bot)
+        vHistorias[Partidas[message.from.username]] = Historia.new(command)
+
+        string = ""
+        for i in 0..vHistorias.count-1 do
+          string << hHistorias.key(i) + "\n#{i}\n"
+        end
+        File.open("Historias/master", "w") do |f|
+          f.write(string)
+        end
+
+        Partidas[message.from.username] = "esperandomodo"
+        reply.text = inicio
       end
     elsif(Partidas[message.from.username]!= nil)
       puts " --> @#{message.from.username}: #{Partidas[message.from.username].getEscena}"
