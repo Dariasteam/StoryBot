@@ -45,7 +45,7 @@ class Juego                                  #Uno por jugador, emplea la informa
   def mostrar
     if(@actual!= nil)
       texto = @actual.mostrar
-      if(texto.include?("@"))
+      while(texto.include?("@"))
         numero = texto[texto.index('@')+1..-1].to_i
         texto = texto[0..texto.index('@')-1]
         @actual = @escenas[numero]
@@ -65,8 +65,6 @@ end
 
 def analizador(flujo)
   opciones = []
-  ini = false
-  opci = ""
   escenasHuerfanas = []
   @escenas = {}
   estado = "0"
@@ -157,6 +155,7 @@ def analizador(flujo)
       @escenas[indice] = Escena.new(contenido.partition(/<*>/).last,opciones)
       escenasHuerfanas.delete(indice)
     end
+    puts "#{indice} asdasd"
   end
   #alertas y errores-----------------------------------------------------------------------------------
   if(escenasHuerfanas.size>0)
@@ -230,7 +229,7 @@ index = 0
 while(File.exist?("Historias/#{index}.bot"))
   puts "Cargado 'Historias/#{index}.bot'"
   vHistorias[index] = Historia.new(File.read("Historias/#{index}.bot"))
-  index = index +1
+  index = index + 1
 end
 #incio del bot
 bot.get_updates(fail_silently: true) do |message|
@@ -269,14 +268,15 @@ bot.get_updates(fail_silently: true) do |message|
     elsif(Partidas[message.from.username] == "creando")
       aux = analizador(command)
       if(aux.is_a? String)
-        reply.text = aux
+        reply.text = aux + "\n\n Prueba de nuevo"
       else
         puts " ~ @#{message.from.username} ha creado una nueva historia"
-        reply.text = "Tu historia ha sido creada correctamente"
+        reply.text = "¡Felicidades! Tu historia ha sido creada correctamente"
         File.open("Historias/#{vHistorias.size}.bot", "w") do |f|
           f.write(command)
         end
         vHistorias << Historia.new(command)
+        Partidas[message.from.username] = "esperandomodo"
       end
     elsif(Partidas[message.from.username]!= nil)
       puts " --> @#{message.from.username}: #{Partidas[message.from.username].getEscena}"
