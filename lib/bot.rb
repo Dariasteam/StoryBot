@@ -70,7 +70,7 @@ def analizador(flujo)
   estado = "0"
   errores = ""
   contenido = ""
-  indice = 0
+  index = 0
   indexl = 1
   flujo << "\n\n"
   flujo.each_line do |line|
@@ -89,32 +89,32 @@ def analizador(flujo)
         estado = "A"
       elsif(estado == "A")
         auxContenido = contenido.split(/</)[1]
-        @escenas[auxContenido[/.>/].to_i] = Escena.new(auxContenido.partition(/.>/).last,[])
-        escenasHuerfanas.delete(auxContenido[/.>/].to_i)
+        @escenas[auxContenido[/(.*?)>/,1].to_i] = Escena.new(auxContenido.partition(/.>/).last,[])
+        escenasHuerfanas.delete(auxContenido[/(.*?)>/,1].to_i)
         contenido = ""
       elsif(estado == "D")
-        @escenas[indice] = Escena.new(@escenas[indice].partition(/<*>/).last,opciones)
-        escenasHuerfanas.delete(indice)
+        @escenas[index] = Escena.new(@escenas[index].partition(/<*>/).last,opciones)
+        escenasHuerfanas.delete(index)
         opciones = []
         estado = "A"
         contenido = ""
       else
         if(@escenas[contenido[/\<(.*?)>/,1].to_i] == nil)
-          errores << "[!] no se esperaba <*> en la línea #{index}"
+          errores << "[!] no se esperaba '<*>' en la línea #{indexl}\n#{line}"
         end
       end
     end
     if(contenido.match(/-/))
       if(estado == "A")
-        indice = contenido[/\<(.*?)>/,1].to_i
-        @escenas[indice] = contenido.partition("-").first
+        index = contenido[/\<(.*?)>/,1].to_i
+        @escenas[index] = contenido.partition("-").first
         contenido = contenido.partition('-').last
         estado = "C"
       elsif(estado == "D")
         contenido = contenido.partition('-').last
         estado = "C"
       else
-        errores << "[!] no se esperaba - en la línea #{index}"
+        errores << "[!] no se esperaba '-' en la línea #{indexl}\n#{contenido}"
       end
     end
     if(contenido.match(/@/))
@@ -137,10 +137,10 @@ def analizador(flujo)
           estado = "D"
           contenido = ""
         else
-          errores << "[!] no se esperaba @ en la línea #{index}"
+          errores << "[!] no se esperaba '@' en la línea #{indexl}\n#{line}"
         end
       else
-        errores "[!] solo se puede declarar una referencia por opción"
+        errores << "[!] solo se puede declarar una referencia por opción"
       end
     end
     contenido = contenido + line
@@ -148,12 +148,12 @@ def analizador(flujo)
   end
   if(contenido!="\n\n")
     if(opciones!=[])
-      @escenas[indice] = Escena.new(@escenas[indice].partition(/<*>/).last,opciones)
-      escenasHuerfanas.delete(indice)
+      @escenas[index] = Escena.new(@escenas[index].partition(/<*>/).last,opciones)
+      escenasHuerfanas.delete(index)
     else
-      indice = contenido[/\<(.*?)>/,1].to_i
-      @escenas[indice] = Escena.new(contenido.partition(/<*>/).last,opciones)
-      escenasHuerfanas.delete(indice)
+      index = contenido[/\<(.*?)>/,1].to_i
+      @escenas[index] = Escena.new(contenido.partition(/<*>/).last,opciones)
+      escenasHuerfanas.delete(index)
     end
   end
   #alertas y errores-----------------------------------------------------------------------------------
@@ -185,7 +185,9 @@ class Historia                              #Una instancia por cada fichero en /
 end
 
 def inicio
-  "1 Jugar historias\n2 Enviar historia\n3 Editar historia"
+  "Envía 'start' para volver a\n"+
+   "este menú en cualquier \nmomento\n\n"+
+   "1 Jugar historias\n2 Enviar historia\n3 Editar historia"
 end
 
 def ejemplo
@@ -206,7 +208,7 @@ def ejemplo
         -Opcion C, lleva a 3 @3
 
   <2> Esta es la escena 2, no tiene opciones, pero lleva a 3 siempre @3
-  <3> Esta es la escena 3, no tiene opciones y se repetirá siempre"
+  <3> Esta es la escena 3, lleva siempre a 0. Las llamadas pueden encadenarse cuantas veces se quiera"
 end
 
 def inicioHistorias(vector)
@@ -264,6 +266,7 @@ bot.get_updates(fail_silently: true) do |message|
         reply.send_with(bot)
         reply.text = ejemplo
       elsif(command.to_i == 3)
+        puts " ~ @#{message.from.username} ha elegido Editar"
         reply.text = "Envíame la clave de tu historia"
         Partidas[message.from.username] = "editando"
       else
@@ -279,7 +282,7 @@ bot.get_updates(fail_silently: true) do |message|
       else
         reply.text = "#{message.from.first_name}, no tengo ni idea de lo que significa #{command.inspect}"
         reply.send_with(bot)
-        reply.text = inicio(vHistorias)
+        reply.text = inicio
       end
     elsif(Partidas[message.from.username] == "creando")
       aux = analizador(command)
@@ -299,6 +302,8 @@ bot.get_updates(fail_silently: true) do |message|
                       "\nGuarda esta clave para poder editarla más adelante: "
         reply.send_with(bot)
         reply.text = pass
+        reply.send_with(bot)
+        reply.text = inicio
         hHistorias[pass] = vHistorias.count
 
         string = ""
@@ -327,7 +332,8 @@ bot.get_updates(fail_silently: true) do |message|
       if(aux.is_a? String)
         reply.text = aux + "\n\n Prueba de nuevo"
       else
-        puts " ~ @#{message.from.username} ha editado la historia"
+        puts " ~ @#{message.from.username} ha editado la historia #{Partidas[message.from.username]}"+
+        " #{vHistorias[Partidas[message.from.username]]}"
         File.open("Historias/#{Partidas[message.from.username]}.bot", "w") do |f|
           f.write(command)
         end
@@ -347,7 +353,7 @@ bot.get_updates(fail_silently: true) do |message|
         reply.text = inicio
       end
     elsif(Partidas[message.from.username]!= nil)
-      puts " --> @#{message.from.username}: #{Partidas[message.from.username].getEscena}"
+      puts " --> @#{message.from.username}: #{command}"
       command = message.get_command_for(bot)
       Partidas[message.from.username].entrada(command)
       if((reply.text = Partidas[message.from.username].mostrar)==nil)
@@ -359,3 +365,8 @@ bot.get_updates(fail_silently: true) do |message|
     reply.send_with(bot)
   end
 end
+
+
+#verificar si una escena es eclarada 2 o más veces
+#recorrer historias para averiguar posibles bucles
+#eliminar error saltos de linea
