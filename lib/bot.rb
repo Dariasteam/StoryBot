@@ -66,52 +66,97 @@ end
 def analizador(flujo)
   opciones = []
   ini = false
-  contenido = ""
+  opci = ""
   escenasHuerfanas = []
   @escenas = {}
+  estado = "0"
   errores = ""
+  contenido = ""
+  indice = 0
+  indexl = 1
+  flujo << "\n\n"
   flujo.each_line do |line|
     #operaciones con una nueva escena---------------------------------------------------------------
-    if(line.match(/<*>/))
-      if(ini==false)
-        ini = true
-      else
-        texto = contenido.sub(/<.>/,'').delete("\n").delete("\t")
-        escena = Escena.new(texto,opciones)
-        numero = contenido[contenido.index('<')+1..contenido.index('>')-1].to_i
-        if(@escenas[numero]==nil)
-          @escenas[numero] = escena
-          escenasHuerfanas.delete(numero)
-        else
-          puts "Error, la escena #{numero} ya ha sido definida como:"+
-          "\n\n'#{@escenas[numero].contenido}'"
-        end
-        opciones = []
-        salto = nil
-      end
-      contenido = line
-    #operaciones con las opciones de una escena--------------------------------------------------------
-    elsif(line.match(/-/))
-      line.slice! ("-")
-      opciones << [line[0..line.index('@')-1],(line[line.index('@')+1..-1]).to_i]
-      numero = (line[line.index('@')+1..-1]).to_i
-      if(@escenas[numero] == nil && !escenasHuerfanas.include?(numero))
-        escenasHuerfanas << numero
-      end
-    elsif(line.match(/{*}/))
-      #puts "El Título es #{line.delete('{').delete('}')}"
-      @titulo = line.delete('{').delete('}').delete("\n")
-    elsif(line.match(/#*#/))
-      #puts "El Autor es #{line.delete('#')}"
-      @autor = line.delete('#').delete("\n")
-    else
-      contenido = contenido + line
+        #puts "linea #{indexl}"
+    if(contenido.match(/#*#/))
+      @autor = contenido[/\#(.*?)#/,1]
+      contenido = ""
     end
+    if(contenido.match(/{*}/))
+      @titulo = contenido[/\{(.*?)}/,1]
+      contenido = ""
+    end
+    if(line.match(/<*>/))
+      if(estado == "0" || estado == "B")
+        estado = "A"
+      elsif(estado == "A")
+        auxContenido = contenido.split(/</)[1]
+        @escenas[auxContenido[/.>/].to_i] = Escena.new(auxContenido.partition(/.>/).last,[])
+        escenasHuerfanas.delete(auxContenido[/.>/].to_i)
+        contenido = ""
+      elsif(estado == "D")
+        @escenas[indice] = Escena.new(@escenas[indice].partition(/<*>/).last,opciones)
+        escenasHuerfanas.delete(indice)
+        opciones = []
+        estado = "A"
+        contenido = ""
+      else
+        if(@escenas[contenido[/\<(.*?)>/,1].to_i] == nil)
+          errores << "[!] no se esperaba <*> en la línea #{index}"
+        end
+      end
+    end
+    if(contenido.match(/-/))
+      if(estado == "A")
+        indice = contenido[/\<(.*?)>/,1].to_i
+        @escenas[indice] = contenido.partition("-").first
+        contenido = contenido.partition('-').last
+        estado = "C"
+      elsif(estado == "D")
+        contenido = contenido.partition('-').last
+        estado = "C"
+      else
+        errores << "[!] no se esperaba - en la línea #{index}"
+      end
+    end
+    if(contenido.match(/@/))
+      numero = contenido.partition("@").last.to_i
+      if(@escenas.key?(numero) == false && !escenasHuerfanas.include?(numero))
+            escenasHuerfanas << numero
+      end
+      if(contenido.count("@") == 1 && estado != "D")
+        if(estado == "A")      #fin de la escena
+          if(contenido[contenido.index("@")+1..-1].to_i == contenido[/\<(.*?)>/,1].to_i)
+            errores << "[!] las escenas no pueden referenciarse a sí mismas"
+          else
+            @escenas[contenido[/\<(.*?)>/,1].to_i] = Escena.new(contenido.partition(/<*>/).last,[])
+            escenasHuerfanas.delete(contenido[/\<(.*?)>/,1].to_i)
+            estado = "B"
+            contenido = ""
+          end
+        elsif(estado == "C")
+          opciones << [contenido.partition("@").first,contenido.partition("@").last.to_i]
+          estado = "D"
+          contenido = ""
+        else
+          errores << "[!] no se esperaba @ en la línea #{index}"
+        end
+      else
+        errores "[!] solo se puede declarar una referencia por opción"
+      end
+    end
+    contenido = contenido + line
+    indexl = indexl + 1
   end
-  if(contenido.match(/<*>/))
-    numero = (contenido[contenido.index('<')+1..contenido.index('>')-1].to_i)
-    escenasHuerfanas.delete(numero)
-    @escenas[numero] = Escena.new(contenido.sub(/<.>/,''),opciones)
+  if(contenido!="\n\n")
+    if(opciones!=[])
+      @escenas[indice] = Escena.new(@escenas[indice].partition(/<*>/).last,opciones)
+      escenasHuerfanas.delete(indice)
+    else
+      indice = contenido[/\<(.*?)>/,1].to_i
+      @escenas[indice] = Escena.new(contenido.partition(/<*>/).last,opciones)
+      escenasHuerfanas.delete(indice)
+    end
   end
   #alertas y errores-----------------------------------------------------------------------------------
   if(escenasHuerfanas.size>0)
@@ -183,6 +228,7 @@ Partidas = {}
 vHistorias = []
 index = 0
 while(File.exist?("Historias/#{index}.bot"))
+  puts "Cargado 'Historias/#{index}.bot'"
   vHistorias[index] = Historia.new(File.read("Historias/#{index}.bot"))
   index = index +1
 end
