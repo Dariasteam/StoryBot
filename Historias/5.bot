@@ -1,0 +1,47 @@
+#Juanete_Explorer#
+{Comenzando tu aventura}
+
+<0> ¡Te damos la bienvenida a tu aventura! Por favor, escoge a tu personaje:
+
+-Bruna, la luchadora @1
+-Doriel, el místico @2
+-Niebla, la asesina @3
+
+<1> Empuñas la maza con ambas manos. Su peso te reconforta, y la mantienes así un momento antes de apuntar con ella al trío de bestias y gritar:
+"¡No les van a tocar ni un pelo a esta gente, mierdasecas!"
+¿Qué harás?
+
+-Lanzarme hacia ellos @4
+-Estudiarlos detenidamente @5
+-A tomar por culo, huyo @6
+
+<2> Cierras brevemente los ojos, notando como la energía bulle en tu sangre, deseando desatarse. Cuando los abres, tus ojos despiden chispas. Pronuncias: "¿Quién quiere que le parta la boca primero?" Los 3 piratas ríen estruendosamente y se acercan a ti.
+
+-Intento freírlos @7
+-Saco la daga @8
+-Me largo de aquí @9
+
+<3> Las lunas asoman entre las nubes, iluminando a la perfección el cogote de tu presa. Recuerdas cómo tintineaban las monedas de oro en el saco; entonas "Guayota, que tu mirada guíe mi mano", y te preparas para pasar a la acción.
+
+-Le asaltas desde el tejado @10
+-Sacas la ballesta para montarla y cargarla @11
+-Que le den al encargo, me voy @12
+
+<4> Te abalanzas sobre los monstruos. Encadenas sendos golpes contra las cabezas de los dos primeros, pero no consigues evitar el mordisco del tercero. Su boca rezuma un apestoso líquido amarillento. "¡Me cagonlamar, cabrón"! De dos volteos de maza le saltas los dientes y lo dejas fuera de combate. La herida de tu brazo tiene una pinta espantosa.
+
+<5> Te tomas unos instantes para observar bien a tus adversarios. Notas cómo de la boca de uno gotea una baba amarilla de aspecto asqueroso, y decides atacarle primero. Quedas expuesta y te llevas un zarpazo mientras lo despachas; pero en unos segundos arreas unos golpes más y terminas el combate. La herida de tu espalda pica.
+
+<6> ¿Pretendes abandonar la aventura antes de empezar? ¡No seas cagona! @1
+
+<7> Gritas mientras la electricidad atraviesa tu cuerpo. Te arde la carne, despides energía por la punta de los dedos, los ojos y la boca. El rufián más cercano convulsiona sin control y cae al suelo, humeando. Los otros dos sueltan improperios jamás antes escuchados y se largan corriendo de la taberna.
+
+<8> Mientras desenfundas, el del sombrero ridículo se acerca y te da un empujón. Caes al suelo, y mientras se mofa le apuñalas el pie. Grita de dolor y furia, aprovechas para clavarle la daga en las tripas con un golpe de telekinesis. Se derrumba. Te levantas y haces danzar la daga a tu alrededor, acompañada con unos arcos voltaicos. Los piratas restantes, aterrorizados, abandonan la escena.
+
+<9> ¿Vas a dejar que te insulten como quieran? ¡Anda y haz que tu aventura empiece bien! @2
+
+<10> Aterrizas de golpe sobre el mercader, con tan mala pata que vuestras cabezas colisionan. Te quedas mareada unos instantes, hasta que el grito del hombre te devuelve al mundo. Le degüellas rápidamente y rebuscas entre sus ropas tratando de que la espesa sangre no te manche la capa; mientras te guardas el paquete en el bolsillo, escuchas unos pasos apresurados a tu espalda.
+
+<11> En lo que te preparas, el objetivo se aleja de ti, pero apuntas perfectamente y tu virote atraviesa presto su garganta. Cae sin emitir más que un gorgoteo, y vas hacia él. Le quitas el paquete y, al doblar la esquina, te topas de bruces con alguien.
+
+<12> Tu honor de mercenaria y mi orgullo no te permiten escaquearte. ¡Termina el trabajo! @3
+

@@ -87,13 +87,13 @@ def analizador(flujo)
   flujo.each_line do |line|
     #operaciones con una nueva escena---------------------------------------------------------------
         #puts "linea #{indexl}"
-    if(contenido.match(/#*#/))
+    if(contenido.match("#"))
       @autor = contenido[/\#(.*?)#/,1]
-      contenido = ""
+      contenido = contenido.sub(/\#(.*?)#/,'')
     end
-    if(contenido.match(/{*}/))
+    if(contenido.match("{"))
       @titulo = contenido[/\{(.*?)}/,1]
-      contenido = ""
+      contenido = contenido.sub(/\{(.*?)}/,'')
     end
     if(line.match(/<*>/))
       if(estado == "0" || estado == "B")
@@ -302,7 +302,7 @@ bot.get_updates(fail_silently: true) do |message|
       else
         puts " ~ @#{message.from.username} ha creado una nueva historia"
         File.open("Historias/#{vHistorias.size}.bot", "w") do |f|
-          f.write(command)
+          f.write(command+"\n")
         end
         pass = (0...50).map { ('a'..'z').to_a[rand(26)] }.join
         File.open("Historias/master", "a") do |f|
@@ -349,7 +349,7 @@ bot.get_updates(fail_silently: true) do |message|
         puts " ~ @#{message.from.username} ha editado la historia #{Partidas[message.from.username]}"+
         " #{vHistorias[Partidas[message.from.username]]}"
         File.open("Historias/#{Partidas[message.from.username]}.bot", "w") do |f|
-          f.write(command)
+          f.write(command+"\n")
         end
         reply.text = "Has editado tu historia correctamente"
         reply.send_with(bot)
@@ -380,7 +380,6 @@ bot.get_updates(fail_silently: true) do |message|
   end
 end
 
-
-#verificar si una escena es declarada 2 o más veces
 #recorrer historias para averiguar posibles bucles
-#eliminar error saltos de linea
+#~eliminar error saltos de linea
+#usar split en el parseador
