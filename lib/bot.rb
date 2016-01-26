@@ -1,262 +1,127 @@
+# coding: utf-8
 require "bot/version"
+require "bot/escena"
+require "bot/historia"
+require "bot/juego"
+
 require 'telegram_bot'
 
-class Escena
-  attr_reader :contenido
-  def initialize(contenido, opciones = [])
-    @contenido = contenido
-    @opciones = opciones
-    @salidas = {}
-    for i in 0..@opciones.size - 1 do
-      @salidas[i] = @opciones[i][1]
-    end
-  end
-  def mostrar
-    mensaje = @contenido + "\n\n"
-    for i in 0..@opciones.size - 1 do
-      mensaje = mensaje + "#{i+1} #{@opciones[i][0].to_s}\n"
-    end
-    mensaje
-  end
-  def entrada(command)
-    if((command.to_i) - 1 == -1)
-      nil
-    else
-      @salidas[(command.to_i) - 1]
-    end
-  end
-end
 
-class Juego                                  #Uno por jugador, emplea la información de la clase Historia
-  def initialize(historia)
-    @escenas = historia.escenas
-    @actual = @escenas[0]
-  end
-  def entrada(command)
-    if(@actual!=nil)
-      actual = @actual.entrada(command)
-      if(actual!=nil)
-        @actual = @escenas[actual]
-      else
-        nil
-      end
-    end
-  end
-  def mostrar
-    if(@actual!= nil)
-      texto = @actual.mostrar
-      while(texto.include?("@"))
-        numero = texto[texto.index('@')+1..-1].to_i
-        texto = texto[0..texto.index('@')-1]
-        @actual = @escenas[numero]
-        texto << "\n#{@actual.mostrar}"
-      end
-      texto
-    end
-  end
-  def reiniciar
-    @actual = @escenas[0]
-    @actual.mostrar
-  end
-  def getEscena
-    @escenas.key(@actual)
-  end
-end
+class ServerBot
 
-def guardaEscena(numero,escena)
-  if(!@escenas.key(numero).is_a? Escena)
-    @escenas[numero]=escena
-    ""
-  else
-    "[!] La escena #{numero} se define dos veces. "
-  end
-end
+  def initialize
+    puts " ~ Iniciando servidor"
+    #incialización del bot
+    token = File.open("telegram.token","r").read.gsub(/\n/,"").delete('\n')
+    @bot = TelegramBot.new(token: token)
 
-def analizador(flujo)
-  opciones = []
-  escenasHuerfanas = []
-  @escenas = {}
-  @autor = nil
-  @titulo = nil
-  estado = "0"
-  errores = ""
-  contenido = ""
-  index = 0
-  indexl = 1
-  flujo << "\n\n"
-  flujo.each_line do |line|
-    #operaciones con una nueva escena---------------------------------------------------------------
-        #puts "linea #{indexl}"
-    if(contenido.match("#"))
-      @autor = contenido[/\#(.*?)#/,1]
-      contenido = contenido.sub(/\#(.*?)#/,'')
+    @connections = {} # Hash User/Group Fiber
+
+
+    vHistorias = [] # todo nose
+    hHistorias = {} # todo nose
+    index = 0
+    while(File.exist?("Historias/#{index}.bot"))
+      puts "Cargado 'Historias/#{index}.bot'"
+      vHistorias[index] = Historia.new(File.read("Historias/#{index}.bot"))
+      index = index + 1
     end
-    if(contenido.match("{"))
-      @titulo = contenido[/\{(.*?)}/,1]
-      contenido = contenido.sub(/\{(.*?)}/,'')
-    end
-    if(line.match(/<*>/))
-      if(estado == "0" || estado == "B")
-        estado = "A"
-      elsif(estado == "A")
-        auxContenido = contenido.split(/</)[1]
-        errores << guardaEscena(auxContenido[/(.*?)>/,1].to_i,Escena.new(auxContenido.partition(/.>/).last,[]))
-        escenasHuerfanas.delete(auxContenido[/(.*?)>/,1].to_i)
-        contenido = ""
-      elsif(estado == "D")
-        errores << guardaEscena(index,Escena.new(@escenas[index].partition(/<*>/).last,opciones))
-        escenasHuerfanas.delete(index)
-        opciones = []
-        estado = "A"
-        contenido = ""
+    bool = true
+    aux = ""
+
+    File.open("Historias/master", "r").each do |line|
+      if(bool)
+        aux = line.delete("\n")
       else
-        if(@escenas[contenido[/\<(.*?)>/,1].to_i] == nil)
-          errores << "[!] no se esperaba '<*>' en la línea #{indexl}\n#{line}"
-        end
+        hHistorias[aux] = line.to_i
       end
+      bool = !bool
     end
-    if(contenido.match(/-/))
-      if(estado == "A")
-        index = contenido[/\<(.*?)>/,1].to_i
-        @escenas[index] = contenido.partition("-").first
-        contenido = contenido.partition('-').last
-        estado = "C"
-      elsif(estado == "D")
-        contenido = contenido.partition('-').last
-        estado = "C"
-      else
-        errores << "[!] no se esperaba '-' en la línea #{indexl}\n#{contenido}"
-      end
-    end
-    if(contenido.match(/@/))
-      numero = contenido.partition("@").last.to_i
-      if(@escenas.key?(numero) == false && !escenasHuerfanas.include?(numero))
-            escenasHuerfanas << numero
-      end
-      if(contenido.count("@") == 1 && estado != "D")
-        if(estado == "A")      #fin de la escena
-          if(contenido[contenido.index("@")+1..-1].to_i == contenido[/\<(.*?)>/,1].to_i)
-            errores << "[!] las escenas no pueden referenciarse a sí mismas"
-          else
-            errores << guardaEscena(contenido[/\<(.*?)>/,1].to_i,Escena.new(contenido.partition(/<*>/).last,[]))
-            escenasHuerfanas.delete(contenido[/\<(.*?)>/,1].to_i)
-            estado = "B"
-            contenido = ""
+
+    @bot.get_updates(fail_silently: true) do |message|
+      command = message.get_command_for(@bot)
+      message.reply do |reply|
+        if not @connections.key? message.from.username
+          @connections[message.from.username] = Fiber.new do |message, command, reply|
+            inicio message, command, reply
           end
-        elsif(estado == "C")
-          opciones << [contenido.partition("@").first,contenido.partition("@").last.to_i]
-          estado = "D"
-          contenido = ""
-        else
-          errores << "[!] no se esperaba '@' en la línea #{indexl}\n#{line}"
         end
-      else
-        errores << "[!] solo se puede declarar una referencia por opción"
+        @connections[message.from.username].resume message, command, reply
       end
     end
-    contenido = contenido + line
-    indexl = indexl + 1
   end
-  if(contenido!="\n\n")
-    if(opciones!=[])
-      @escenas[index] = Escena.new(@escenas[index].partition(/<*>/).last,opciones)
-      escenasHuerfanas.delete(index)
+
+  def inicioHistorias(vector)
+    text = "Tienes a elegir entre las siguientes historias:\n\n"
+    for i in 0..vector.size - 1 do
+      text << "#{i+1}\t #{vector[i].titulo}, por #{vector[i].autor} \n"
+    end
+    text
+  end
+
+  def inicio message, command, reply
+    p " ~ @#{message.from.username} se ha unido"
+    reply.text = Jugar.inicio
+    reply.send_with(@bot)
+    Fiber.yield
+    case message
+    when "1"
+      reply.text = inicioHistorias(vHistorias)
+      reply.send_with(@bot)
+      Fiber.yield
+      jugar message, command, reply
+    when "2"
+      reply.text = "Enviame un mensaje con el formato siguiente: "
+      reply.send_with(@bot)
+      reply.text = Historia.ejemplo
+      reply.send_with(@bot)
+      Fiber.yield
+      introducir_historia message, command, reply
+    when "3"
+      modificar_historia message, command, reply
     else
-      index = contenido[/\<(.*?)>/,1].to_i
-      @escenas[index] = Escena.new(contenido.partition(/<*>/).last,opciones)
-      escenasHuerfanas.delete(index)
+      reply.text = "#{message.from.first_name}, no tengo ni idea de lo que significa #{command.inspect}"
+      reply.send_with(@bot)
+      inicio message, command, reply
     end
   end
-  #alertas y errores-----------------------------------------------------------------------------------
-  if(escenasHuerfanas.size>0)
-    errores << "[!] Las escenas #{escenasHuerfanas} son referenciadas pero no están declaradas\n"
+
+  def jugar message, command, reply
+    puts " ~ @#{message.from.username} ha elegido Jugar"
+
+    if vHistorias.key? command
+      puts " ~ @#{message.from.username} ha elegido la historia (#{command.to_i-1}) #{vHistorias[command.to_i-1].titulo}"
+      juego = Juego.new(vHistorias[command.to_i-1])
+      begin
+        reply.text = juego.mostrar
+        reply.send_with(@bot)
+        Fiber.yield
+        juego.entrada(command)
+      end while not /\/start/ =~ command
+      inicio message, command, reply
+    else
+      reply.text = "#{message.from.first_name}, no tengo ni idea de lo que significa #{command.inspect}"
+      reply.send_with(bot)
+      inicio message, command, reply # TODO no tan lejos
+    end
   end
-  if(@titulo == nil)
-    errores << "[!] La historia no tiene título\n"
+
+  def introducir_historia message, command, reply # TODO
+    puts " ~ @#{message.from.username} ha elegido Crear Historias"
+    reply.text = "Envíame un mensaje con el formato siguiente: "
+    reply.send_with(bot)
+    reply.text = ejemplo
   end
-  if(@autor == nil)
-    errores << "[!] La historia no tiene autor\n"
-  end
-  if(@escenas.length < 1)
-    errores << "[!] La historia debe tener al menos una escena\n"
-  end
-  puts "Generadas #{@escenas.length} escenas\n\n"
-  if(errores!="")
-    errores
-  else
+
+  def modificar_historia message, commnad, reply # TODO
+    puts " ~ @#{message.from.username} ha elegido Modificar Historias"
 
   end
 end
 
-class Historia                              #Una instancia por cada fichero en /Historias, contiene Escenas
-  attr_reader :escenas, :titulo, :autor
-  def initialize(uri)
-    analizador(uri)
-  end
-end
-
-def inicio
-  "Envía 'start' para volver a\n"+
-   "este menú en cualquier \nmomento\n\n"+
-   "1 Jugar historias\n2 Enviar historia\n3 Editar historia"
-end
-
-def ejemplo
-  "#Autor#
-  {Nombre_Historia}
-
-  <0> Esto es la descripción de la escena 0
-      Esto sigue siéndolo, no cambiará hasta
-      que aparezca un guión
-
-        -Esta es la primera opción, lleva a 1 @1
-        -Esta es la segunda opción, lleva a 2 @2
-
-  <1> Esto es la escena 1
-
-        -Opcion A, lleva a 0 @0
-        -Opcion B, lleva a 2 @2
-        -Opcion C, lleva a 3 @3
-
-  <2> Esta es la escena 2, no tiene opciones, pero lleva a 3 siempre @3
-  <3> Esta es la escena 3, lleva siempre a 0. Las llamadas pueden encadenarse cuantas veces se quiera"
-end
-
-def inicioHistorias(vector)
-  text = "Tienes a elegir entre las siguientes historias:\n\n"
-  for i in 0..vector.size - 1 do
-    text << "#{i+1}\t #{vector[i].titulo}, por #{vector[i].autor} \n"
-  end
-  text
-end
 
 
 
-puts "Iniciando servidor"
-#incialización del bot
-token = File.open("telegram.token","r").read.gsub(/\n/,"").delete('\n')
-bot = TelegramBot.new(token: token)
-#inicialización de las historias
-Partidas = {}
-vHistorias = []
-hHistorias = {}
-index = 0
-while(File.exist?("Historias/#{index}.bot"))
-  puts "Cargado 'Historias/#{index}.bot'"
-  vHistorias[index] = Historia.new(File.read("Historias/#{index}.bot"))
-  index = index + 1
-end
-bool = true
-aux = ""
-
-File.open("Historias/master", "r").each do |line|
-  if(bool)
-    aux = line.delete("\n")
-  else
-    hHistorias[aux] = line.to_i
-  end
-  bool = !bool
-end
 #incio del bot
 bot.get_updates(fail_silently: true) do |message|
   command = message.get_command_for(bot)
@@ -271,6 +136,8 @@ bot.get_updates(fail_silently: true) do |message|
         Partidas[message.from.username] = "esperandojuego"
         reply.text = inicioHistorias(vHistorias)
       elsif(command.to_i == 2)
+
+
         puts " ~ @#{message.from.username} ha elegido Crear"
         Partidas[message.from.username] = "creando"
         reply.text = "Envíame un mensaje con el formato siguiente: "
@@ -285,6 +152,7 @@ bot.get_updates(fail_silently: true) do |message|
         reply.send_with(bot)
         reply.text = inicio
       end
+
     elsif(Partidas[message.from.username] == "esperandojuego")
       if(command.to_i <= vHistorias.size && command.to_i > 0)
         puts " ~ @#{message.from.username} ha elegido la historia (#{command.to_i-1}) #{vHistorias[command.to_i-1].titulo}"
@@ -310,7 +178,7 @@ bot.get_updates(fail_silently: true) do |message|
           f.write("\n#{vHistorias.size}\n")
         end
         reply.text = "¡Felicidades! Tu historia ha sido creada correctamente."+
-                      "\nGuarda esta clave para poder editarla más adelante: "
+                     "\nGuarda esta clave para poder editarla más adelante: "
         reply.send_with(bot)
         reply.text = pass
         reply.send_with(bot)
@@ -327,8 +195,6 @@ bot.get_updates(fail_silently: true) do |message|
         File.open("Historias/master", "w") do |f|
           f.write(string)
         end
-
-
 
         Partidas[message.from.username] = "esperandomodo"
       end
@@ -347,7 +213,7 @@ bot.get_updates(fail_silently: true) do |message|
         reply.text = aux + "\n\n Prueba de nuevo"
       else
         puts " ~ @#{message.from.username} ha editado la historia #{Partidas[message.from.username]}"+
-        " #{vHistorias[Partidas[message.from.username]]}"
+             " #{vHistorias[Partidas[message.from.username]]}"
         File.open("Historias/#{Partidas[message.from.username]}.bot", "w") do |f|
           f.write(command+"\n")
         end
