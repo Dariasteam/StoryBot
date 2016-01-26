@@ -88,32 +88,32 @@ def analizador(flujo)
   flujo.each_line do |line|
     line.split.map do |s|
       if(s.match(/#(.*?)#/))
-        @autor = s[/\#(.*?)#/,1]
-      elsif(s.match("}"))
-        @titulo = s.delete("{|}")
-      elsif(s.match(/<*>/))
+        @autor = s[/#(.*?)#/,1]
+      elsif(line.match(/\{(.*?)\}/))
+        @titulo = line[/\{(.*?)\}/,1]
+      elsif(s.match(/<(.+?)>/))
         if(estado == "0")
           estado = "A"
         elsif(estado == "B" || estado == "D" || estado == "A")
           @escenas[index] = Escena.new(buff,opciones)
           if(escenasHuerfanas.include?(index)); escenasHuerfanas.delete(index); end
           estado = "A"
-          index = s[/\<(.*?)>/,1].to_i
+          index = s[/<(.+?)>/,1].to_i
           opciones = []
           buff = ""
         else
           errores << "[!] no se esperaba '#{s}' en la línea #{indexl}\n#{line}"
         end
-      elsif(s.match(/-/))
+      elsif(s.match(/~/))
         if(estado == "A" || estado == "D")
-          opciones << [s.delete("-")+" ",nil]
+          opciones << [s.delete("~")+" ",nil]
           estado = "C"
         else
           errores << "[!] no se esperaba '#{s}' en la línea #{indexl}\n#{line}"
         end
       elsif(s.match(/@/))
         dir = s.partition("@").last.to_i
-        if(@escenas[dir]==nil); escenasHuerfanas << dir; end
+        if(!@escenas.key?(dir) && !escenasHuerfanas.include?(dir)); escenasHuerfanas << dir; end
         if(estado == "A")
           estado = "B"
         elsif(estado == "C")
@@ -133,9 +133,9 @@ def analizador(flujo)
     indexl = indexl + 1
   end
   #ultima escena--------------------------------------------------------------------------------------
-  if(estado=="A")
+  if(estado=="A" || estado=="D")
     @escenas[index] = Escena.new(buff,opciones)
-    if(escenasHuerfanas[index]!=nil); escenasHuerfanas.delete(index); end
+    if(escenasHuerfanas.include?(index)); escenasHuerfanas.delete(index); end
   elsif(estado=="C")
     errores << "[!] se esperaba '@' en la línea #{indexl}\n"
   end
@@ -179,16 +179,16 @@ def ejemplo
 
   <0> Esto es la descripción de la escena 0
       Esto sigue siéndolo, no cambiará hasta
-      que aparezca un guión
+      que aparezca un caracter virgulilla (guón ondulado)
 
-        -Esta es la primera opción, lleva a 1 @1
-        -Esta es la segunda opción, lleva a 2 @2
+        ~Esta es la primera opción, lleva a 1 @1
+        ~Esta es la segunda opción, lleva a 2 @2
 
   <1> Esto es la escena 1
 
-        -Opcion A, lleva a 0 @0
-        -Opcion B, lleva a 2 @2
-        -Opcion C, lleva a 3 @3
+        ~Opcion A, lleva a 0 @0
+        ~Opcion B, lleva a 2 @2
+        ~Opcion C, lleva a 3 @3
 
   <2> Esta es la escena 2, no tiene opciones, pero lleva a 3 siempre @3
   <3> Esta es la escena 3, lleva siempre a 0. Las llamadas pueden encadenarse cuantas veces se quiera"
