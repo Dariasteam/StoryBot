@@ -7,6 +7,6 @@
 /pkg/
 /spec/reports/
 /tmp/
-/.token/
-/.swp/
-/.bot/
+*.token
+*.swp
+*.bot
