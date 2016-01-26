@@ -255,6 +255,14 @@ master.split.map do |linea|
   end
 end
 
+def guardarClaves(hHistorias)
+  string = ""
+  hHistorias.map do |hash|
+    string << "#{hash[0]}\n#{hash[1]}\n"
+  end
+  File.open("Historias/master", "w") { |f| f.write(string) }
+end
+
 #incio del bot
 bot.get_updates(fail_silently: true) do |message|
   command = message.get_command_for(bot)
@@ -317,14 +325,7 @@ bot.get_updates(fail_silently: true) do |message|
 
         vHistorias << Historia.new(command)
 
-        string = ""
-        for i in 0..vHistorias.count-1 do
-          puts "i : #{i}"
-          string << hHistorias.key(i) + "\n#{i}\n"
-        end
-        File.open("Historias/master", "w") do |f|
-          f.write(string)
-        end
+        guardarClaves(hHistorias)
 
 
 
@@ -353,13 +354,7 @@ bot.get_updates(fail_silently: true) do |message|
         reply.send_with(bot)
         vHistorias[Partidas[message.from.username]] = Historia.new(command)
 
-        string = ""
-        for i in 0..vHistorias.count-1 do
-          string << hHistorias.key(i) + "\n#{i}\n"
-        end
-        File.open("Historias/master", "w") do |f|
-          f.write(string)
-        end
+        guardarClaves(hHistorias)
 
         Partidas[message.from.username] = "esperandomodo"
         reply.text = inicio
@@ -377,6 +372,7 @@ bot.get_updates(fail_silently: true) do |message|
     reply.send_with(bot)
   end
 end
+
 
 #recorrer historias para averiguar posibles bucles
 #~eliminar error saltos de linea
