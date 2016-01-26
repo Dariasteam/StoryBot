@@ -157,7 +157,7 @@ def analizador(flujo)
     contenido = contenido + line
     indexl = indexl + 1
   end
-  if(contenido!="\n\n")
+  if(contenido.split!=[])
     if(opciones!=[])
       @escenas[index] = Escena.new(@escenas[index].partition(/<*>/).last,opciones)
       escenasHuerfanas.delete(index)
@@ -240,23 +240,21 @@ bot = TelegramBot.new(token: token)
 Partidas = {}
 vHistorias = []
 hHistorias = {}
-index = 0
-while(File.exist?("Historias/#{index}.bot"))
-  puts "Cargado 'Historias/#{index}.bot'"
-  vHistorias[index] = Historia.new(File.read("Historias/#{index}.bot"))
-  index = index + 1
-end
-bool = true
+
+master = File.read("Historias/master")
 aux = ""
 
-File.open("Historias/master", "r").each do |line|
-  if(bool)
-    aux = line.delete("\n")
+#Carga del fichero master y según lo especificado busca los *.bot
+master.split.map do |linea|
+  if(linea.length > 20)
+    aux = linea
   else
-    hHistorias[aux] = line.to_i
+    hHistorias[aux] = linea.to_i
+    puts "Cargado 'Historias/#{linea}.bot'"
+    vHistorias[linea.to_i] = Historia.new(File.read("Historias/#{linea}.bot"))
   end
-  bool = !bool
 end
+
 #incio del bot
 bot.get_updates(fail_silently: true) do |message|
   command = message.get_command_for(bot)
