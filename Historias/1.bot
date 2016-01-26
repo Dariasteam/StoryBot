@@ -1,20 +1,15 @@
 #Ojisviolitis#
-{La guapancia}
+{El Cuadrado}
 
-<0>¿quién es más guapo?
+<0>
+¿Quieres curar a tus pokémon?
 
--LegenDarias @1
--Wilbert @2
--TurboDavid @3
--TochoRubén @4
--HollowRive @5
+-Sí @1
+-No @2
 
-<1> bueeeeno @0
+<1>
+Los curaste, pero deben seguir cansados @0
 
-<2> okey @0
+<2>
+Deberías curarlos en realidad @0
 
-<3> ahé @0
-
-<4> buh @0
-
-<5> ringo flow @0

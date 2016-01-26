@@ -1,18 +1,21 @@
-#Autor#
-{Nombre_Historia}
+#Sara#
+{Perroaventura}
 
-<0> Esto es la descripción de la escena 0
-    Esto sigue siéndolo, no cambiará hasta
-    que aparezca un guión
+<0>Te encuentras con una perro disfrazado de otro perro de otra raza distinta.
+-Te acercas al perro @1
+-Ignoras al perro @2
 
-      -Esta es la primera opción, lleva a 1 @1
-      -Esta es la segunda opción, lleva a 2 @2
+<1>El perro, que aparentemente se ha cambiado de disfraz de nuevo, te mira fijamente y decide cambiarse de disfraz una vez más: @0
 
-<1> Esto es la escena 1
+<2>El perro corre detrás de ti. Curiosamente ahora tiene un traje de gato.
+-Te disfrazas de perro @3
+-Te disfrazas de otro perro distinto @4
 
-      -Opcion A, lleva a 0 @0
-      -Opcion B, lleva a 2 @2
-      -Opcion C, lleva a 3 @3
+<3>Parpadeas. Abres los ojos de nuevo. @0
 
-<2> Esta es la escena 2, no tiene opciones
-<3> Esta es la escena 3, no tiene opciones
+<4>El perro se pone un disfraz de perro de nuevo.
+-Le quitas el disfraz al perro @5
+-Te disfrazas de gato @3
+
+<5>Tú eras el perro. Mueres al intentar quitarte el disfraz que te daba la vida
+

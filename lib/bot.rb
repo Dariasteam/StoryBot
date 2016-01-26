@@ -63,10 +63,21 @@ class Juego                                  #Uno por jugador, emplea la informa
   end
 end
 
+def guardaEscena(numero,escena)
+  if(!@escenas.key(numero).is_a? Escena)
+    @escenas[numero]=escena
+    ""
+  else
+    "[!] La escena #{numero} se define dos veces. "
+  end
+end
+
 def analizador(flujo)
   opciones = []
   escenasHuerfanas = []
   @escenas = {}
+  @autor = nil
+  @titulo = nil
   estado = "0"
   errores = ""
   contenido = ""
@@ -89,11 +100,11 @@ def analizador(flujo)
         estado = "A"
       elsif(estado == "A")
         auxContenido = contenido.split(/</)[1]
-        @escenas[auxContenido[/(.*?)>/,1].to_i] = Escena.new(auxContenido.partition(/.>/).last,[])
+        errores << guardaEscena(auxContenido[/(.*?)>/,1].to_i,Escena.new(auxContenido.partition(/.>/).last,[]))
         escenasHuerfanas.delete(auxContenido[/(.*?)>/,1].to_i)
         contenido = ""
       elsif(estado == "D")
-        @escenas[index] = Escena.new(@escenas[index].partition(/<*>/).last,opciones)
+        errores << guardaEscena(index,Escena.new(@escenas[index].partition(/<*>/).last,opciones))
         escenasHuerfanas.delete(index)
         opciones = []
         estado = "A"
@@ -127,7 +138,7 @@ def analizador(flujo)
           if(contenido[contenido.index("@")+1..-1].to_i == contenido[/\<(.*?)>/,1].to_i)
             errores << "[!] las escenas no pueden referenciarse a sí mismas"
           else
-            @escenas[contenido[/\<(.*?)>/,1].to_i] = Escena.new(contenido.partition(/<*>/).last,[])
+            errores << guardaEscena(contenido[/\<(.*?)>/,1].to_i,Escena.new(contenido.partition(/<*>/).last,[]))
             escenasHuerfanas.delete(contenido[/\<(.*?)>/,1].to_i)
             estado = "B"
             contenido = ""
@@ -306,8 +317,11 @@ bot.get_updates(fail_silently: true) do |message|
         reply.text = inicio
         hHistorias[pass] = vHistorias.count
 
+        vHistorias << Historia.new(command)
+
         string = ""
         for i in 0..vHistorias.count-1 do
+          puts "i : #{i}"
           string << hHistorias.key(i) + "\n#{i}\n"
         end
         File.open("Historias/master", "w") do |f|
@@ -315,7 +329,7 @@ bot.get_updates(fail_silently: true) do |message|
         end
 
 
-        vHistorias << Historia.new(command)
+
         Partidas[message.from.username] = "esperandomodo"
       end
     elsif(Partidas[message.from.username]== "editando")
@@ -367,6 +381,6 @@ bot.get_updates(fail_silently: true) do |message|
 end
 
 
-#verificar si una escena es eclarada 2 o más veces
+#verificar si una escena es declarada 2 o más veces
 #recorrer historias para averiguar posibles bucles
 #eliminar error saltos de linea
