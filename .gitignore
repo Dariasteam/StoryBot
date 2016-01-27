@@ -1,12 +1,12 @@
 /.bundle/
 /.yardoc
-/Gemfile.lock
+Gemfile.lock
 /_yardoc/
 /coverage/
 /doc/
 /pkg/
 /spec/reports/
-/tmp/
-/.token/
-/.swp/
-/.bot/
+tmp/
+*.token
+*.swp
+*.bot
