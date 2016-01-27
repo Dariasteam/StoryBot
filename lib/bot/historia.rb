@@ -1,8 +1,11 @@
 # coding: utf-8
-
+require "bot/escena"
 
 class Historia                              #Una instancia por cada fichero en /Historias, contiene Escenas
   attr_reader :escenas, :titulo, :autor
+
+  # private_class_method :new  # que complicado hacer una estupides
+
   def initialize(uri)
     analizador(uri)
   end
@@ -37,7 +40,7 @@ class Historia                              #Una instancia por cada fichero en /
     end
   end
 
-  def analizador(flujo)
+  def analizador(flujo) # TODO esto necesita una limpieza
     opciones = []
     escenasHuerfanas = []
     @escenas = {}
@@ -45,92 +48,63 @@ class Historia                              #Una instancia por cada fichero en /
     @titulo = nil
     estado = "0"
     errores = ""
-    contenido = ""
     index = 0
     indexl = 1
+    buff = ""
     flujo << "\n\n"
     flujo.each_line do |line|
-      #operaciones con una nueva escena---------------------------------------------------------------
-      #puts "linea #{indexl}"
-      if(contenido.match("#"))
-        @autor = contenido[/\#(.*?)#/,1]
-        contenido = contenido.sub(/\#(.*?)#/,'')
-      end
-      if(contenido.match("{"))
-        @titulo = contenido[/\{(.*?)}/,1]
-        contenido = contenido.sub(/\{(.*?)}/,'')
-      end
-      if(line.match(/<*>/))
-        if(estado == "0" || estado == "B")
-          estado = "A"
-        elsif(estado == "A")
-          auxContenido = contenido.split(/</)[1]
-          errores << guardaEscena(auxContenido[/(.*?)>/,1].to_i,Escena.new(auxContenido.partition(/.>/).last,[]))
-          escenasHuerfanas.delete(auxContenido[/(.*?)>/,1].to_i)
-          contenido = ""
-        elsif(estado == "D")
-          errores << guardaEscena(index,Escena.new(@escenas[index].partition(/<*>/).last,opciones))
-          escenasHuerfanas.delete(index)
-          opciones = []
-          estado = "A"
-          contenido = ""
-        else
-          if(@escenas[contenido[/\<(.*?)>/,1].to_i] == nil)
-            errores << "[!] no se esperaba '<*>' en la línea #{indexl}\n#{line}"
-          end
-        end
-      end
-      if(contenido.match(/-/))
-        if(estado == "A")
-          index = contenido[/\<(.*?)>/,1].to_i
-          @escenas[index] = contenido.partition("-").first
-          contenido = contenido.partition('-').last
-          estado = "C"
-        elsif(estado == "D")
-          contenido = contenido.partition('-').last
-          estado = "C"
-        else
-          errores << "[!] no se esperaba '-' en la línea #{indexl}\n#{contenido}"
-        end
-      end
-      if(contenido.match(/@/))
-        numero = contenido.partition("@").last.to_i
-        if(@escenas.key?(numero) == false && !escenasHuerfanas.include?(numero))
-          escenasHuerfanas << numero
-        end
-        if(contenido.count("@") == 1 && estado != "D")
-          if(estado == "A")      #fin de la escena
-            if(contenido[contenido.index("@")+1..-1].to_i == contenido[/\<(.*?)>/,1].to_i)
-              errores << "[!] las escenas no pueden referenciarse a sí mismas"
-            else
-              errores << guardaEscena(contenido[/\<(.*?)>/,1].to_i,Escena.new(contenido.partition(/<*>/).last,[]))
-              escenasHuerfanas.delete(contenido[/\<(.*?)>/,1].to_i)
-              estado = "B"
-              contenido = ""
-            end
-          elsif(estado == "C")
-            opciones << [contenido.partition("@").first,contenido.partition("@").last.to_i]
-            estado = "D"
-            contenido = ""
+      line.split.map do |s|
+        if(s.match(/#(.*?)#/))
+          @autor = s[/#(.*?)#/,1]
+        elsif(line.match(/\{(.*?)\}/))
+          @titulo = line[/\{(.*?)\}/,1]
+        elsif(s.match(/<(.+?)>/))
+          if(estado == "0")
+            estado = "A"
+          elsif(estado == "B" || estado == "D" || estado == "A")
+            @escenas[index] = Escena.new(buff,opciones)
+            if(escenasHuerfanas.include?(index)); escenasHuerfanas.delete(index); end
+            estado = "A"
+            index = s[/<(.+?)>/,1].to_i
+            opciones = []
+            buff = ""
           else
-            errores << "[!] no se esperaba '@' en la línea #{indexl}\n#{line}"
+            errores << "[!] no se esperaba '#{s}' en la línea #{indexl}\n#{line}"
+          end
+        elsif(s.match(/~/))
+          if(estado == "A" || estado == "D")
+            opciones << [s.delete("~")+" ",nil]
+            estado = "C"
+          else
+            errores << "[!] no se esperaba '#{s}' en la línea #{indexl}\n#{line}"
+          end
+        elsif(s.match(/@/))
+          dir = s.partition("@").last.to_i
+          if(!@escenas.key?(dir) && !escenasHuerfanas.include?(dir)); escenasHuerfanas << dir; end
+          if(estado == "A")
+            estado = "B"
+          elsif(estado == "C")
+            opciones[-1][1] = s.partition("@").last.to_i
+            estado = "D"
+          else
+            errores << "[!] no se esperaba '#{s}' en la línea #{indexl}\n#{line}"
           end
         else
-          errores << "[!] solo se puede declarar una referencia por opción"
+          if(estado=="C")
+            opciones[-1][0] << s+" "
+          else
+            buff << s+" "
+          end
         end
       end
-      contenido = contenido + line
       indexl = indexl + 1
     end
-    if(contenido!="\n\n")
-      if(opciones!=[])
-        @escenas[index] = Escena.new(@escenas[index].partition(/<*>/).last,opciones)
-        escenasHuerfanas.delete(index)
-      else
-        index = contenido[/\<(.*?)>/,1].to_i
-        @escenas[index] = Escena.new(contenido.partition(/<*>/).last,opciones)
-        escenasHuerfanas.delete(index)
-      end
+    #ultima escena--------------------------------------------------------------------------------------
+    if(estado=="A" || estado=="D")
+      @escenas[index] = Escena.new(buff,opciones)
+      if(escenasHuerfanas.include?(index)); escenasHuerfanas.delete(index); end
+    elsif(estado=="C")
+      errores << "[!] se esperaba '@' en la línea #{indexl}\n"
     end
     #alertas y errores-----------------------------------------------------------------------------------
     if(escenasHuerfanas.size>0)
@@ -148,8 +122,6 @@ class Historia                              #Una instancia por cada fichero en /
     puts "Generadas #{@escenas.length} escenas\n\n"
     if(errores!="")
       errores
-    else
-
     end
   end
 end

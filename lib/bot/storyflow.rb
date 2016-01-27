@@ -45,3 +45,13 @@ end
 var = Thread.new "mi_hilo" do |algo|
 
 end
+
+fiber = Fiber.new do |hey|
+  puts "1#{hey}"
+  hey = Fiber.yield
+  puts "2#{hey}"
+  hey = Fiber.yield
+  puts "3#{hey}"
+  hey = Fiber.yield
+  puts "4#{hey}"
+end
