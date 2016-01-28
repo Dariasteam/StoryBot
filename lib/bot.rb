@@ -3,21 +3,38 @@ require 'telegram_bot'
 
 class Escena
   attr_reader :contenido
-  attr_accessor :opciones, :contenido
-  def initialize(contenido, opciones = [])
-    @contenido = contenido
-    @opciones = opciones
+  attr_accessor :probabilistico, :contenido
+  def initialize
+    @contenido = ""
+    @opciones = []
     @salidas = {}
-    for i in 0..@opciones.size - 1 do
-      @salidas[i] = @opciones[i][1]
-    end
+    @probabilistico = []
   end
   def mostrar
-    mensaje = @contenido + "\n\n"
-    for i in 0..@opciones.size - 1 do
-      mensaje = mensaje + "#{i+1} #{@opciones[i][0].to_s}\n"
+    if(@probabilistico == [])
+      mensaje = @contenido + "\n\n"
+      for i in 0..@opciones.size - 1 do
+        mensaje = mensaje + "#{i+1} #{@opciones[i][0].to_s}\n"
+      end
+    else
+      mensaje = @contenido.sub(/@\d/,"")
+      p = rand(1..@probabilistico[0])
+      i = 1
+      while @probabilistico[i][1] < p
+        i = i + 1
+      end
+      mensaje << "@#{@probabilistico[i][2]}"
+      puts "La elección es el camino #{@probabilistico[i][2]}"
     end
     mensaje
+  end
+  def addOption(option,probabilistico = [])
+    puts "La opción #{@salidas.size+1}, va a ser #{option}"
+    @salidas[@salidas.size] = option[1]
+    @opciones << option
+  end
+  def addProb(probabilistico = [])
+    @probabilistico << probabilistico
   end
   def entrada(command)
     if((command.to_i) - 1 == -1)
@@ -75,6 +92,7 @@ end
 
 def analizador(flujo)
   opciones = []
+  probabilistico = []
   escenasHuerfanas = []
   @escenas = {}
   @autor = nil
@@ -97,13 +115,11 @@ def analizador(flujo)
       elsif(line.match(/\{(.*?)\}/))
         @titulo = line[/\{(.*?)\}/,1]
       elsif(s.match(/<\d+>/))
-        if(estado == "0")
-          estado = "A"
-        elsif(estado == "B" || estado == "D" || estado == "A" || estado == "F" || estado == "H")
-          @escenas[index] = Escena.new(buff,opciones)
+        if(estado == "B" || estado == "D" || estado == "A" || estado == "F" || estado == "H" || estado == "0")
+          index = s[/\d+/].to_i
+          @escenas[index] = Escena.new
           if(escenasHuerfanas.include?(index)); escenasHuerfanas.delete(index); end
           estado = "A"
-          index = s[/\d+/].to_i
           opciones = []
           buff = ""
           intervaloMin = 0
@@ -120,6 +136,7 @@ def analizador(flujo)
         end
       elsif(s.match(/\$\d+/))
         intervaloMax = s[/\d+/].to_i
+        @escenas[index].probabilistico << intervaloMax
         if(estado == "A")
           estado = "E"
         elsif(estado == "C")
@@ -130,8 +147,8 @@ def analizador(flujo)
       elsif(s.match(/\(\d+\,@\d+\)/))
         op = s[/\d+,/][/\d+/].to_i
         if(op > intervaloMin && op <= intervaloMax)
+          @escenas[index].probabilistico << [intervaloMin+1,op,s[/@\d+/][/\d+/].to_i]
           intervaloMin = op
-          probabilistico = [op,s[/@\d+/][/\d+/].to_i]
         else
           errores << "[!] los parámetros de '#{s}' están fuera de rango .Línea #{indexl}\n#{line}"
         end
@@ -147,10 +164,11 @@ def analizador(flujo)
         dir = s.partition("@").last.to_i
         if(!@escenas.key?(dir) && !escenasHuerfanas.include?(dir)); escenasHuerfanas << dir; end
         if(estado == "A")
-          buff << s+" "
+          @escenas[index].contenido << s+" "
           estado = "B"
         elsif(estado == "C")
           opciones[-1][1] = s.partition("@").last.to_i
+          @escenas[index].addOption(opciones[-1],[])
           estado = "D"
         else
           errores << "[!] no se esperaba '#{s}' en la línea #{indexl}\n#{line}"
@@ -158,8 +176,8 @@ def analizador(flujo)
       else
         if(estado=="C")
           opciones[-1][0] << s+" "
-        elsif(!estado.match(/-1/))
-          buff << s+" "
+        elsif(!estado.match(/-1/) && @escenas.length>0)
+          @escenas[index].contenido << s+" "
         end
       end
     end
@@ -167,12 +185,6 @@ def analizador(flujo)
     indexl = indexl + 1
   end
   #ultima escena--------------------------------------------------------------------------------------
-  if(estado=="C")
-    errores << "[!] se esperaba '@' en la línea #{indexl}\n"
-  elsif
-    @escenas[index] = Escena.new(buff,opciones)
-    if(escenasHuerfanas.include?(index)); escenasHuerfanas.delete(index); end
-  end
   #alertas y errores-----------------------------------------------------------------------------------
   if(escenasHuerfanas.size>0)
     errores << "[!] Las escenas #{escenasHuerfanas} son referenciadas pero no están declaradas\n"
@@ -189,6 +201,7 @@ def analizador(flujo)
   puts "Generadas #{@escenas.length} escenas\n\n"
   if(errores!="")
     puts errores
+    errores
   end
 end
 
