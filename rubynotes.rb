@@ -1,6 +1,35 @@
 # coding: utf-8
 
 
+class Ejemplo
+  private_class_method :new
+
+  def initialize str
+    puts str
+  end
+
+  def self.ejemplo *args
+    object = new *args
+    object
+  end
+end
+
+
+
+var = Thread.new "mi_hilo" do |algo|
+
+end
+
+fiber = Fiber.new do |hey|
+  puts "1#{hey}"
+  hey = Fiber.yield
+  puts "2#{hey}"
+  hey = Fiber.yield
+  puts "3#{hey}"
+  hey = Fiber.yield
+  puts "4#{hey}"
+end
+
 
 class StoryFlow
   attr_accessor :pointer
@@ -30,28 +59,14 @@ end
 
 m = StoryFlow.new do
   inicio "Erase una vez..."
-      0 => :fin,
-      1 => :interminable,
-      2 => :inicio
+  0 => :fin,
+  1 => :interminable,
+  2 => :inicio
 
   interminable "Una historia ¬ terminable"
-      0 => :interminable
+  0 => :interminable
 
   fin "Terminable"
-      0 => :fin
+  0 => :fin
 end
 
-
-var = Thread.new "mi_hilo" do |algo|
-
-end
-
-fiber = Fiber.new do |hey|
-  puts "1#{hey}"
-  hey = Fiber.yield
-  puts "2#{hey}"
-  hey = Fiber.yield
-  puts "3#{hey}"
-  hey = Fiber.yield
-  puts "4#{hey}"
-end

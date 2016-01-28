@@ -35,7 +35,7 @@ class ServerBot
     index = 0
     while(File.exist?("Historias/#{index}.bot"))
       puts "Cargado 'Historias/#{index}.bot'"
-      @vHistorias[index] = Historia.new(File.read("Historias/#{index}.bot"))
+      @vHistorias[index] = Historia.from_string(File.read("Historias/#{index}.bot"))
       index += 1
     end
   end
