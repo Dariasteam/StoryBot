@@ -3,7 +3,7 @@ require 'telegram_bot'
 
 class Escena
   attr_reader :contenido
-  attr_accessor :opciones
+  attr_accessor :opciones, :contenido
   def initialize(contenido, opciones = [])
     @contenido = contenido
     @opciones = opciones
@@ -82,25 +82,32 @@ def analizador(flujo)
   estado = "0"
   errores = ""
   index = 0
+  intervaloMin = 0
+  intervaloMax = 0
   indexl = 1
   buff = ""
   flujo << "\n\n"
   flujo.each_line do |line|
     line.split.map do |s|
-      if(s.match(/#(.*?)#/))
+      if(s.match(/\/\//))            #comentarios //
+        estado << "-1"
+      elsif(estado.match(/-1/))
+      elsif(s.match(/#(.*?)#/))
         @autor = s[/#(.*?)#/,1]
       elsif(line.match(/\{(.*?)\}/))
         @titulo = line[/\{(.*?)\}/,1]
-      elsif(s.match(/<(.+?)>/))
+      elsif(s.match(/<\d+>/))
         if(estado == "0")
           estado = "A"
-        elsif(estado == "B" || estado == "D" || estado == "A")
+        elsif(estado == "B" || estado == "D" || estado == "A" || estado == "F" || estado == "H")
           @escenas[index] = Escena.new(buff,opciones)
           if(escenasHuerfanas.include?(index)); escenasHuerfanas.delete(index); end
           estado = "A"
-          index = s[/<(.+?)>/,1].to_i
+          index = s[/\d+/].to_i
           opciones = []
           buff = ""
+          intervaloMin = 0
+          intervaloMax = 0
         else
           errores << "[!] no se esperaba '#{s}' en la línea #{indexl}\n#{line}"
         end
@@ -111,10 +118,36 @@ def analizador(flujo)
         else
           errores << "[!] no se esperaba '#{s}' en la línea #{indexl}\n#{line}"
         end
-      elsif(s.match(/@/))
+      elsif(s.match(/\$\d+/))
+        intervaloMax = s[/\d+/].to_i
+        if(estado == "A")
+          estado = "E"
+        elsif(estado == "C")
+          estado = "G"
+        else
+          errores << "[!] no se esperaba '#{s}' en la línea #{indexl}\n#{line}"
+        end
+      elsif(s.match(/\(\d+\,@\d+\)/))
+        op = s[/\d+,/][/\d+/].to_i
+        if(op > intervaloMin && op <= intervaloMax)
+          intervaloMin = op
+          probabilistico = [op,s[/@\d+/][/\d+/].to_i]
+        else
+          errores << "[!] los parámetros de '#{s}' están fuera de rango .Línea #{indexl}\n#{line}"
+        end
+        if(estado == "E")
+          estado = "F"
+        elsif(estado == "F" || estado == "H")
+        elsif(estado == "G")
+          estado = "H"
+        else
+          errores << "[!] no se esperaba '#{s}' en la línea #{indexl}\n#{line}"
+        end
+      elsif(s.match(/@\d+/))
         dir = s.partition("@").last.to_i
         if(!@escenas.key?(dir) && !escenasHuerfanas.include?(dir)); escenasHuerfanas << dir; end
         if(estado == "A")
+          buff << s+" "
           estado = "B"
         elsif(estado == "C")
           opciones[-1][1] = s.partition("@").last.to_i
@@ -125,19 +158,20 @@ def analizador(flujo)
       else
         if(estado=="C")
           opciones[-1][0] << s+" "
-        else
+        elsif(!estado.match(/-1/))
           buff << s+" "
         end
       end
     end
+    estado = estado.delete("-1")
     indexl = indexl + 1
   end
   #ultima escena--------------------------------------------------------------------------------------
-  if(estado=="A" || estado=="D")
+  if(estado=="C")
+    errores << "[!] se esperaba '@' en la línea #{indexl}\n"
+  elsif
     @escenas[index] = Escena.new(buff,opciones)
     if(escenasHuerfanas.include?(index)); escenasHuerfanas.delete(index); end
-  elsif(estado=="C")
-    errores << "[!] se esperaba '@' en la línea #{indexl}\n"
   end
   #alertas y errores-----------------------------------------------------------------------------------
   if(escenasHuerfanas.size>0)
@@ -154,9 +188,7 @@ def analizador(flujo)
   end
   puts "Generadas #{@escenas.length} escenas\n\n"
   if(errores!="")
-    errores
-  else
-
+    puts errores
   end
 end
 
@@ -294,13 +326,8 @@ bot.get_updates(fail_silently: true) do |message|
         reply.send_with(bot)
         reply.text = inicio
         hHistorias[pass] = vHistorias.count
-
         vHistorias << Historia.new(command)
-
         guardarClaves(hHistorias)
-
-
-
         Partidas[message.from.username] = "esperandomodo"
       end
     elsif(Partidas[message.from.username]== "editando")
@@ -325,9 +352,7 @@ bot.get_updates(fail_silently: true) do |message|
         reply.text = "Has editado tu historia correctamente"
         reply.send_with(bot)
         vHistorias[Partidas[message.from.username]] = Historia.new(command)
-
         guardarClaves(hHistorias)
-
         Partidas[message.from.username] = "esperandomodo"
         reply.text = inicio
       end
@@ -345,7 +370,5 @@ bot.get_updates(fail_silently: true) do |message|
   end
 end
 
-
 #recorrer historias para averiguar posibles bucles
 #~eliminar error saltos de linea
-#usar split en el parseador
