@@ -39,7 +39,7 @@ class Escena
     @probabilistico << probabilistico
   end
   def entrada(command)
-    if((command.to_i) - 1 == -1)
+    if((command.to_i-1 == -1 )||(command.to_i-1 > (@opciones.size-1) ))
       nil
     else
       if(@opciones[command.to_i-1][1].kind_of?(Array))
@@ -130,6 +130,7 @@ def analizador(flujo)
         if(estado == "B" || estado == "D" || estado == "A" || estado == "F" || estado == "H" || estado == "0")
           index = s[/\d+/].to_i
           @escenas[index] = Escena.new
+          @escenas[index].contenido << s.partition(">").last << " "
           if(escenasHuerfanas.include?(index)); escenasHuerfanas.delete(index); end
           estado = "A"
           opciones = []
@@ -140,7 +141,7 @@ def analizador(flujo)
           errores << "[!] no se esperaba '#{s}' en la línea #{indexl}\n#{line}"
         end
       elsif(s.match(/~/))
-        if(estado == "A" || estado == "D")
+        if(estado == "A" || estado == "D" || estado == "H")
           opciones << [s.delete("~")+" ",nil]
           estado = "C"
         else
@@ -235,27 +236,6 @@ def inicio
    "1 Jugar historias\n2 Enviar historia\n3 Editar historia"
 end
 
-def ejemplo
-  "#Autor#
-  {Nombre_Historia}
-
-  <0> Esto es la descripción de la escena 0
-      Esto sigue siéndolo, no cambiará hasta
-      que aparezca un caracter virgulilla (guón ondulado)
-
-        ~Esta es la primera opción, lleva a 1 @1
-        ~Esta es la segunda opción, lleva a 2 @2
-
-  <1> Esto es la escena 1
-
-        ~Opcion A, lleva a 0 @0
-        ~Opcion B, lleva a 2 @2
-        ~Opcion C, lleva a 3 @3
-
-  <2> Esta es la escena 2, no tiene opciones, pero lleva a 3 siempre @3
-  <3> Esta es la escena 3, lleva siempre a 0. Las llamadas pueden encadenarse cuantas veces se quiera"
-end
-
 def inicioHistorias(vector)
   text = "Tienes a elegir entre las siguientes historias:\n\n"
   for i in 0..vector.size - 1 do
@@ -315,7 +295,7 @@ bot.get_updates(fail_silently: true) do |message|
         Partidas[message.from.username] = "creando"
         reply.text = "Envíame un mensaje con el formato siguiente: "
         reply.send_with(bot)
-        reply.text = ejemplo
+        reply.text = File.read("Historias/example")
       elsif(command.to_i == 3)
         puts " ~ @#{message.from.username} ha elegido Editar"
         reply.text = "Envíame la clave de tu historia"
