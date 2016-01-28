@@ -106,5 +106,3 @@ class ServerBot
     puts " ~ @#{message.from.username} ha elegido Modificar Historias"
   end
 end
-
-server = ServerBot.new

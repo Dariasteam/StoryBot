@@ -7,5 +7,5 @@ task :default => :server
 
 desc "Exec bot server"
 task :server do
-  sh "ruby -I lib lib/bot.rb"
+  sh "ruby -I lib exe/storybot.rb"
 end
