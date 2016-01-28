@@ -24,14 +24,16 @@ class Escena
         i = i + 1
       end
       mensaje << "@#{@probabilistico[i][2]}"
-      puts "La elección es el camino #{@probabilistico[i][2]}"
     end
     mensaje
   end
   def addOption(option,probabilistico = [])
-    puts "La opción #{@salidas.size+1}, va a ser #{option}"
-    @salidas[@salidas.size] = option[1]
-    @opciones << option
+    if(probabilistico == [])
+      @opciones << option
+      @salidas[@salidas.size] = option[1]
+    else
+      @opciones << [option,probabilistico]
+    end
   end
   def addProb(probabilistico = [])
     @probabilistico << probabilistico
@@ -40,7 +42,17 @@ class Escena
     if((command.to_i) - 1 == -1)
       nil
     else
-      @salidas[(command.to_i) - 1]
+      if(@opciones[command.to_i-1][1].kind_of?(Array))
+        probabilistico = @opciones[command.to_i-1][1]
+        p = rand(1..probabilistico[0])
+        i = 1
+        while probabilistico[i][1] < p
+          i = i + 1
+        end
+        probabilistico[i][2]
+      else
+        @salidas[(command.to_i) - 1]
+      end
     end
   end
 end
@@ -134,12 +146,13 @@ def analizador(flujo)
         else
           errores << "[!] no se esperaba '#{s}' en la línea #{indexl}\n#{line}"
         end
-      elsif(s.match(/\$\d+/))
+      elsif(s.match(/\%\d+/))
         intervaloMax = s[/\d+/].to_i
-        @escenas[index].probabilistico << intervaloMax
         if(estado == "A")
+          @escenas[index].probabilistico << intervaloMax
           estado = "E"
         elsif(estado == "C")
+          probabilistico << intervaloMax
           estado = "G"
         else
           errores << "[!] no se esperaba '#{s}' en la línea #{indexl}\n#{line}"
@@ -147,19 +160,23 @@ def analizador(flujo)
       elsif(s.match(/\(\d+\,@\d+\)/))
         op = s[/\d+,/][/\d+/].to_i
         if(op > intervaloMin && op <= intervaloMax)
-          @escenas[index].probabilistico << [intervaloMin+1,op,s[/@\d+/][/\d+/].to_i]
+          if(estado == "E" || estado == "F")
+            @escenas[index].probabilistico << [intervaloMin+1,op,s[/@\d+/][/\d+/].to_i]
+            estado = "F"
+          elsif(estado == "G" || estado == "H")
+            estado = "H"
+            probabilistico << [intervaloMin+1,op,s[/@\d+/][/\d+/].to_i]
+            if(op == intervaloMax)
+              @escenas[index].addOption(opciones[-1][0],probabilistico)
+            end
+          else
+            errores << "[!] no se esperaba '#{s}' en la línea #{indexl}\n#{line}"
+          end
           intervaloMin = op
         else
           errores << "[!] los parámetros de '#{s}' están fuera de rango .Línea #{indexl}\n#{line}"
         end
-        if(estado == "E")
-          estado = "F"
-        elsif(estado == "F" || estado == "H")
-        elsif(estado == "G")
-          estado = "H"
-        else
-          errores << "[!] no se esperaba '#{s}' en la línea #{indexl}\n#{line}"
-        end
+
       elsif(s.match(/@\d+/))
         dir = s.partition("@").last.to_i
         if(!@escenas.key?(dir) && !escenasHuerfanas.include?(dir)); escenasHuerfanas << dir; end
