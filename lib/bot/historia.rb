@@ -4,11 +4,7 @@ require "bot/escena"
 class Historia                              #Una instancia por cada fichero en /Historias, contiene Escenas
   attr_reader :escenas, :titulo, :autor
 
-  #private_class_method :new  # que complicado hacer una estupides
-
-  def initialize(string)
-    analizador(string)
-  end
+  private_class_method :new  # que complicado hacer una estupides
 
   def self.from_string str
     object = new

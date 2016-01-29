@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe Bot do
+describe Historia do
   before :all do
     @historia = nil
   end
