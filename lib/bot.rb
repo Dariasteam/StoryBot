@@ -39,7 +39,7 @@ class ServerBot
       else
         @hKeyId[aux] = linea.to_i
         puts "Cargado 'Historias/#{linea}.bot'"
-        @Historias << Historia.new(File.read("Historias/#{linea}.bot"))
+        @Historias << Historia.from_string(File.read("Historias/#{linea}.bot"))
       end
     end
   end
@@ -138,7 +138,7 @@ class ServerBot
       reply.send_with(bot)
       reply.text = inicio
       hHistorias[pass] = vHistorias.count
-      vHistorias << Historia.new(message)
+      vHistorias << Historia.from_string(message)
       guardarClaves(hHistorias)
       Partidas[message.from.username] = "esperandomodo"
     end
