@@ -1,6 +1,7 @@
 # coding: utf-8
 
 
+<<<<<<< HEAD
 =begin
 Seguramente hace falta pa algo las siguientes cosas:
 - clone y dup: hacen una copia superficial del objeto
@@ -32,6 +33,8 @@ marshal_dump y marshal_load permiten serializar el objeto y desserializarlo
 
 =end
 
+=======
+>>>>>>> dani/master
 class Ejemplo
   private_class_method :new
 

@@ -6,7 +6,7 @@ Gemfile.lock
 /doc/
 /pkg/
 /spec/reports/
-tmp/
+/tmp/
 *.token
 *.swp
 *.bot
