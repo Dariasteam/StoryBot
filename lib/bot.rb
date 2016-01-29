@@ -81,6 +81,8 @@ class ServerBot
       introducir_historia bot, message
     when "3"
       modificar_historia bot, message
+    when "start"
+      inicio bot, message
     else
       bot.api.send_message(
         chat_id: message.chat.id,
