@@ -1,12 +1,16 @@
 /.bundle/
 /.yardoc
-/Gemfile.lock
+Gemfile.lock
 /_yardoc/
 /coverage/
 /doc/
 /pkg/
 /spec/reports/
+<<<<<<< HEAD
 /tmp/
+=======
+tmp/
+>>>>>>> be15664fa70cdc3a6ba8f24765595a3500d777e7
 *.token
 *.swp
 *.bot

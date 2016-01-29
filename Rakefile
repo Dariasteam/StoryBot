@@ -3,4 +3,9 @@ require "rspec/core/rake_task"
 
 RSpec::Core::RakeTask.new(:spec)
 
-task :default => :spec
+task :default => :server
+
+desc "Exec bot server"
+task :server do
+  sh "ruby -I lib exe/storybot.rb"
+end

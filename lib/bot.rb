@@ -1,411 +1,152 @@
+# coding: utf-8
 require "bot/version"
-require 'telegram_bot'
+require "bot/escena"
+require "bot/historia"
+require "bot/juego"
+require 'telegram/bot'
 
-class Escena
-  attr_reader :contenido
-  attr_accessor :probabilistico, :contenido
+
+class ServerBot
   def initialize
-    @contenido = ""
-    @opciones = []
-    @salidas = {}
-    @probabilistico = []
-  end
-  def mostrar
-    if(@probabilistico == [])
-      mensaje = @contenido + "\n\n"
-      for i in 0..@opciones.size - 1 do
-        mensaje = mensaje + "#{i+1} #{@opciones[i][0].to_s}\n"
-      end
-    else
-      mensaje = @contenido.sub(/@\d/,"")
-      p = rand(1..@probabilistico[0])
-      i = 1
-      while @probabilistico[i][1] < p
-        i = i + 1
-      end
-      mensaje << "@#{@probabilistico[i][2]}"
-    end
-    mensaje
-  end
-  def addOption(option,probabilistico = [])
-    if(probabilistico == [])
-      @opciones << option
-      @salidas[@salidas.size] = option[1]
-    else
-      @opciones << [option,probabilistico]
-    end
-  end
-  def addProb(probabilistico = [])
-    @probabilistico << probabilistico
-  end
-  def entrada(command)
-    if((command.to_i-1 == -1 )||(command.to_i-1 > (@opciones.size-1) ))
-      nil
-    else
-      if(@opciones[command.to_i-1][1].kind_of?(Array))
-        probabilistico = @opciones[command.to_i-1][1]
-        p = rand(1..probabilistico[0])
-        i = 1
-        while probabilistico[i][1] < p
-          i = i + 1
-        end
-        probabilistico[i][2]
-      else
-        @salidas[(command.to_i) - 1]
-      end
-    end
-  end
-end
-
-class Juego                                  #Uno por jugador, emplea la información de la clase Historia
-  def initialize(historia)
-    @escenas = historia.escenas
-    @actual = @escenas[0]
-  end
-  def entrada(command)
-    if(@actual!=nil)
-      actual = @actual.entrada(command)
-      if(actual!=nil)
-        @actual = @escenas[actual]
-      else
-        nil
-      end
-    end
-  end
-  def mostrar
-    if(@actual!= nil)
-      texto = @actual.mostrar
-      while(texto.include?("@"))
-        numero = texto[texto.index('@')+1..-1].to_i
-        texto = texto[0..texto.index('@')-1]
-        @actual = @escenas[numero]
-        texto << "\n#{@actual.mostrar}"
-      end
-      texto
-    end
-  end
-  def reiniciar
-    @actual = @escenas[0]
-    @actual.mostrar
-  end
-  def getEscena
-    @escenas.key(@actual)
-  end
-end
-
-def guardaEscena(numero,escena)
-  if(!@escenas.key(numero).is_a? Escena)
-    @escenas[numero]=escena
-    ""
-  else
-    "[!] La escena #{numero} se define dos veces. "
-  end
-end
-
-def buscaBucles(i,visitadas)
-  if(visitadas[i] == false)
-    visitadas[i] = true
-    j = @escenas[i].contenido.partition("@").last.to_i
-    return buscaBucles(j,visitadas)
-  elsif(visitadas[i] == true)
-    return "#{i} "
-  end
-  ""
-end
-
-def analizador(flujo)
-  opciones = []
-  probabilistico = []
-  escenasHuerfanas = []
-  saltosDeterministas = []
-  @escenas = {}
-  @autor = nil
-  @titulo = nil
-  estado = "A"
-  errores = ""
-  index = 0
-  intervaloMin = 0
-  intervaloMax = 0
-  indexl = 1
-  flujo.each_line do |line|
-    line.split.map do |s|
-      if(s.match(/\/\//))            #comentarios //
-        estado << "-1"
-      elsif(estado.match(/-1/))
-      elsif(line.match(/#(.*?)#/))
-        @autor = line[/#(.*?)#/,1]
-      elsif(line.match(/\{(.*?)\}/))
-        @titulo = line[/\{(.*?)\}/,1]
-      elsif(s.match(/<\d+>/))
-        if(estado == "B" || estado == "D" || estado == "A" || estado == "F" || estado == "H")
-          index = s[/\d+/].to_i
-          @escenas[index] = Escena.new
-          @escenas[index].contenido << s.partition(">").last << " "
-          if(escenasHuerfanas.include?(index)); escenasHuerfanas.delete(index); end
-          estado = "A"
-          opciones = []
-          probabilistico = []
-          intervaloMin = 0
-          intervaloMax = 0
-        else
-          errores << "[!] no se esperaba '#{s}' en la línea #{indexl}\n#{line}"
-        end
-      elsif(s.match(/~/))
-        if(estado == "A" || estado == "D" || estado == "H")
-          opciones << [s.delete("~")+" ",nil]
-          estado = "C"
-        else
-          errores << "[!] no se esperaba '#{s}' en la línea #{indexl}\n#{line}"
-        end
-      elsif(s.match(/\%\d+/))
-        intervaloMax = s[/\d+/].to_i
-        if(estado == "A")
-          @escenas[index].probabilistico << intervaloMax
-          estado = "E"
-        elsif(estado == "C")
-          probabilistico << intervaloMax
-          estado = "G"
-        else
-          errores << "[!] no se esperaba '#{s}' en la línea #{indexl}\n#{line}"
-        end
-      elsif(s.match(/\(\d+\,@\d+\)/))
-        op = s[/\d+,/][/\d+/].to_i
-        if(op > intervaloMin && op <= intervaloMax)
-          if(estado == "E" || estado == "F")
-            @escenas[index].probabilistico << [intervaloMin+1,op,s[/@\d+/][/\d+/].to_i]
-            estado = "F"
-          elsif(estado == "G" || estado == "H")
-            estado = "H"
-            probabilistico << [intervaloMin+1,op,s[/@\d+/][/\d+/].to_i]
-            if(op == intervaloMax)
-              @escenas[index].addOption(opciones[-1][0],probabilistico)
-            end
-          else
-            errores << "[!] no se esperaba '#{s}' en la línea #{indexl}\n#{line}"
+    @connections = {} # Hash User/Group Fiber
+    @Historias  = []
+    @hKeyId  = {}  #Pares key/id de las historias
+    cargarHistorias
+    puts " ~ Iniciando el bot"
+    token = File.open("telegram.token","r").read.strip
+    Telegram::Bot::Client.run(token) do |bot|
+      bot.listen do |message|
+        puts " ~ reply #{message.chat.id}"
+        if not @connections.key? message.chat.id
+          puts " ~ @#{message.from.username} se ha unido"
+          @connections[message.chat.id] = Fiber.new do |bot, message|
+            inicio bot, message
           end
-          intervaloMin = op
-        else
-          errores << "[!] los parámetros de '#{s}' están fuera de rango .Línea #{indexl}\n#{line}"
         end
-      elsif(s.match(/@\d+/))
-        dir = s.partition("@").last.to_i
-        if(!@escenas.key?(dir) && !escenasHuerfanas.include?(dir)); escenasHuerfanas << dir; end
-        if(estado == "A")
-          @escenas[index].contenido << s+" "
-          saltosDeterministas << index
-          estado = "B"
-        elsif(estado == "C")
-          opciones[-1][1] = s.partition("@").last.to_i
-          @escenas[index].addOption(opciones[-1],[])
-          estado = "D"
-        else
-          errores << "[!] no se esperaba '#{s}' en la línea #{indexl}\n#{line}"
+        puts "--> @#{message.from.username} #{message.text}"
+        if(!message.text.empty?)
+          @connections[message.chat.id].resume bot, message
         end
+      end
+    end
+  end
+
+  def cargarHistorias
+    #Carga del fichero master y según lo especificado busca los *.bot
+    File.read("Historias/master").split.map do |linea|
+      if(linea.length > 20)
+        aux = linea
       else
-        if(estado=="C")
-          opciones[-1][0] << s+" "
-        elsif(!estado.match(/-1/) && @escenas.length>0)
-          @escenas[index].contenido << s+" "
-        end
+        @hKeyId[aux] = linea.to_i
+        puts "Cargado 'Historias/#{linea}.bot'"
+        @Historias << Historia.new(File.read("Historias/#{linea}.bot"))
       end
     end
-    estado = estado.delete("-1")
-    indexl = indexl + 1
   end
-  #ultima escena--------------------------------------------------------------------------------------
-  #alertas y errores-----------------------------------------------------------------------------------
-  if(escenasHuerfanas.size>0)
-    errores << "[!] Las escenas #{escenasHuerfanas} son referenciadas pero no están declaradas\n"
+
+  def guardarClaves
+    #actualiza los pares key/id del fichero master
+    string = ""
+    @hKeyId.map do |hash|
+      string << "#{hash[0]}\n#{hash[1]}\n"
+    end
+    File.open("Historias/master", "w") { |f| f.write(string) }
   end
-  if(@titulo == nil)
-    errores << "[!] La historia no tiene título\n"
+
+  def inicioHistorias
+    text = "Tienes a elegir entre las siguientes historias:\n\n"
+    i = 1
+    @Historias.map do |v|
+      text << "#{i}\t #{v.titulo}, por #{v.autor} \n"
+      i = i + 1
+    end
+    text
   end
-  if(@autor == nil)
-    errores << "[!] La historia no tiene autor\n"
-  end
-  if(@escenas.length < 1)
-    errores << "[!] La historia debe tener al menos una escena\n"
-  end
-  #comprobar que no existan bucles
-  visitados = {}
-  saltosDeterministas.collect do |s|
-    visitados[s] = false
-  end
-  buff = ""
-  saltosDeterministas.collect do |s|
-    buff << buscaBucles(s,visitados)
-    if(buff!="")
-      errores << "[!] Bucle formado por las escenas "
-      buff.split.map do |m|
-        errores << "<#{m}>, "
-      end
-      errores << "\n"
+
+  def inicio bot, message
+    bot.api.send_message(chat_id: message.chat.id, text: Juego.inicio)
+    bot, message = Fiber.yield
+    message.text = message.text.delete("/")
+    case message.text
+    when "1"
+      bot.api.send_message(chat_id: message.chat.id, text: inicioHistorias)
+      bot, message = Fiber.yield
+      jugar bot, message
+    when "2"
+      bot.api.send_message(
+        chat_id: message.chat.id,
+        text: "Enviame un mensaje con el formato siguiente: ")
+      bot.api.send_message(chat_id: message.chat.id, text: Historia.ejemplo)
+      bot, message = Fiber.yield
+      introducir_historia bot, message
+    when "3"
+      modificar_historia bot, message
+    else
+      bot.api.send_message(
+        chat_id: message.chat.id,
+        text: "#{message.from.first_name}, no tengo ni idea de lo que significa #{message.text}")
+      inicio bot, message
     end
   end
-  if(errores!="")
-    puts errores
-    errores
-  else
-    puts "Generadas #{@escenas.length} escenas\n\n"
+
+  def jugar bot, message
+    puts " ~ @#{message.from.username} ha elegido Jugar"
+    message.text = message.text.delete("/")
+    if(@Historias.length >= message.text.to_i && message.text.to_i > 0)
+      puts " ~ @#{message.from.username} ha elegido la historia (#{message.text.to_i}) #{@Historias[message.text.to_i-1].titulo}"
+      juego = Juego.new(@Historias[message.text.to_i-1])
+      while(!(message.text =~ /start/))     #evita envío de mensaje vacio
+          juego.entrada(message.text)
+          t = juego.mostrar
+          if(t.empty? || t=="")
+            t = "#{message.from.first_name}, no tengo ni idea de lo que significa #{message.text}"
+          end
+            bot.api.send_message(
+              chat_id: message.chat.id,
+              text: t)
+          bot, message = Fiber.yield
+          message.text = message.text.delete("/")
+      end
+      inicio bot, message
+    else
+      bot.api.send_message(
+        chat_id: message.chat.id,
+        text: "#{message.from.first_name}, no tengo ni idea de lo que significa #{message.text.inspect}")
+      inicio bot, message
+    end
   end
-end
 
-class Historia                              #Una instancia por cada fichero en /Historias, contiene Escenas
-  attr_reader :escenas, :titulo, :autor
-  def initialize(uri)
-    analizador(uri)
-  end
-end
-
-def inicio
-  "Envía 'start' para volver a\n"+
-   "este menú en cualquier \nmomento\n\n"+
-   "1 Jugar historias\n2 Enviar historia\n3 Editar historia"
-end
-
-def inicioHistorias(vector)
-  text = "Tienes a elegir entre las siguientes historias:\n\n"
-  for i in 0..vector.size - 1 do
-    text << "#{i+1}\t #{vector[i].titulo}, por #{vector[i].autor} \n"
-  end
-  text
-end
-
-
-
-puts "Iniciando servidor"
-#incialización del bot
-token = File.open("telegram.token","r").read.gsub(/\n/,"").delete('\n')
-bot = TelegramBot.new(token: token)
-#inicialización de las historias
-Partidas = {}
-vHistorias = []
-hHistorias = {}
-
-master = File.read("Historias/master")
-aux = ""
-
-#Carga del fichero master y según lo especificado busca los *.bot
-master.split.map do |linea|
-  if(linea.length > 20)
-    aux = linea
-  else
-    hHistorias[aux] = linea.to_i
-    puts "Cargado 'Historias/#{linea}.bot'"
-    vHistorias[linea.to_i] = Historia.new(File.read("Historias/#{linea}.bot"))
-  end
-end
-
-def guardarClaves(hHistorias)
-  string = ""
-  hHistorias.map do |hash|
-    string << "#{hash[0]}\n#{hash[1]}\n"
-  end
-  File.open("Historias/master", "w") { |f| f.write(string) }
-end
-
-#incio del bot
-bot.get_updates(fail_silently: true) do |message|
-  command = message.get_command_for(bot)
-  message.reply do |reply|
-    if(Partidas[message.from.username] == nil || command =~ /start/i)
-      puts " ~ @#{message.from.username} se ha unido"
+  def introducir_historia bot, message
+    puts " ~ @#{message.from.username} ha elegido Crear Historias"
+    aux = analizador(message)
+    if(aux.is_a? String)
+      reply.text = aux + "\n\n Prueba de nuevo"
+    else
+      puts " ~ @#{message.from.username} ha creado una nueva historia"
+      File.open("Historias/#{vHistorias.size}.bot", "w") do |f|
+        f.write(message+"\n")
+      end
+      pass = (0...50).map { ('a'..'z').to_a[rand(26)] }.join
+      File.open("Historias/master", "a") do |f|
+        f.write(pass)
+        f.write("\n#{vHistorias.size}\n")
+      end
+      reply.text = "¡Felicidades! Tu historia ha sido creada correctamente."+
+                    "\nGuarda esta clave para poder editarla más adelante: "
+      reply.send_with(bot)
+      reply.text = pass
+      reply.send_with(bot)
       reply.text = inicio
+      hHistorias[pass] = vHistorias.count
+      vHistorias << Historia.new(message)
+      guardarClaves(hHistorias)
       Partidas[message.from.username] = "esperandomodo"
-    elsif(Partidas[message.from.username] == "esperandomodo")
-      if(command.to_i == 1)
-        puts " ~ @#{message.from.username} ha elegido Jugar"
-        Partidas[message.from.username] = "esperandojuego"
-        reply.text = inicioHistorias(vHistorias)
-      elsif(command.to_i == 2)
-        puts " ~ @#{message.from.username} ha elegido Crear"
-        Partidas[message.from.username] = "creando"
-        reply.text = "Envíame un mensaje con el formato siguiente: "
-        reply.send_with(bot)
-        reply.text = File.read("Historias/example")
-      elsif(command.to_i == 3)
-        puts " ~ @#{message.from.username} ha elegido Editar"
-        reply.text = "Envíame la clave de tu historia"
-        Partidas[message.from.username] = "editando"
-      else
-        reply.text = "#{message.from.first_name}, no tengo ni idea de lo que significa #{command.inspect}"
-        reply.send_with(bot)
-        reply.text = inicio
-      end
-    elsif(Partidas[message.from.username] == "esperandojuego")
-      if(command.to_i <= vHistorias.size && command.to_i > 0)
-        puts " ~ @#{message.from.username} ha elegido la historia (#{command.to_i-1}) #{vHistorias[command.to_i-1].titulo}"
-        Partidas[message.from.username] = Juego.new(vHistorias[command.to_i-1])
-        reply.text = Partidas[message.from.username].mostrar
-      else
-        reply.text = "#{message.from.first_name}, no tengo ni idea de lo que significa #{command.inspect}"
-        reply.send_with(bot)
-        reply.text = inicio
-      end
-    elsif(Partidas[message.from.username] == "creando")
-      aux = analizador(command)
-      if(aux.is_a? String)
-        reply.text = aux + "\n\n Prueba de nuevo"
-      else
-        puts " ~ @#{message.from.username} ha creado una nueva historia"
-        File.open("Historias/#{vHistorias.size}.bot", "w") do |f|
-          f.write(command+"\n")
-        end
-        pass = (0...50).map { ('a'..'z').to_a[rand(26)] }.join
-        File.open("Historias/master", "a") do |f|
-          f.write(pass)
-          f.write("\n#{vHistorias.size}\n")
-        end
-        reply.text = "¡Felicidades! Tu historia ha sido creada correctamente."+
-                      "\nGuarda esta clave para poder editarla más adelante: "
-        reply.send_with(bot)
-        reply.text = pass
-        reply.send_with(bot)
-        reply.text = inicio
-        hHistorias[pass] = vHistorias.count
-        vHistorias << Historia.new(command)
-        guardarClaves(hHistorias)
-        Partidas[message.from.username] = "esperandomodo"
-      end
-    elsif(Partidas[message.from.username]== "editando")
-      if(hHistorias[command]==nil)
-        reply.text = "[!] La clave no es correcta"
-      else
-        reply.text = "Recuperando historia\n"
-        reply.send_with(bot)
-        reply.text = File.read("Historias/#{hHistorias[command]}.bot")
-        Partidas[message.from.username] = hHistorias[command].to_i
-      end
-    elsif(Partidas[message.from.username].is_a? Integer)
-      aux = analizador(command)
-      if(aux.is_a? String)
-        reply.text = aux + "\n\n Prueba de nuevo"
-      else
-        puts " ~ @#{message.from.username} ha editado la historia #{Partidas[message.from.username]}"+
-        " #{vHistorias[Partidas[message.from.username]]}"
-        File.open("Historias/#{Partidas[message.from.username]}.bot", "w") do |f|
-          f.write(command+"\n")
-        end
-        reply.text = "Has editado tu historia correctamente"
-        reply.send_with(bot)
-        vHistorias[Partidas[message.from.username]] = Historia.new(command)
-        guardarClaves(hHistorias)
-        Partidas[message.from.username] = "esperandomodo"
-        reply.text = inicio
-      end
-    elsif(Partidas[message.from.username]!= nil)
-      puts " --> @#{message.from.username}: #{command}"
-      command = message.get_command_for(bot)
-      Partidas[message.from.username].entrada(command)
-      if((reply.text = Partidas[message.from.username].mostrar)==nil)
-        reply.send_with(bot)
-        reply.text = "#{message.from.first_name}, no tengo ni idea de lo que significa #{command.inspect}"
-      end
-      puts " <-- @#{message.from.username} <#{Partidas[message.from.username].getEscena}>"
     end
-    reply.send_with(bot)
+  end
+
+  def modificar_historia bot, message
+    puts " ~ @#{message.from.username} ha elegido Modificar Historias"
   end
 end
 
-#recorrer historias para averiguar posibles bucles
-#~eliminar error saltos de linea
+a = ServerBot.new
