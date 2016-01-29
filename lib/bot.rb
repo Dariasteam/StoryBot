@@ -102,39 +102,49 @@ def guardaEscena(numero,escena)
   end
 end
 
+def buscaBucles(i,visitadas)
+  if(visitadas[i] == false)
+    visitadas[i] = true
+    j = @escenas[i].contenido.partition("@").last.to_i
+    return buscaBucles(j,visitadas)
+  elsif(visitadas[i] == true)
+    return "#{i} "
+  end
+  ""
+end
+
 def analizador(flujo)
   opciones = []
   probabilistico = []
   escenasHuerfanas = []
+  saltosDeterministas = []
   @escenas = {}
   @autor = nil
   @titulo = nil
-  estado = "0"
+  estado = "A"
   errores = ""
   index = 0
   intervaloMin = 0
   intervaloMax = 0
   indexl = 1
-  buff = ""
-  flujo << "\n\n"
   flujo.each_line do |line|
     line.split.map do |s|
       if(s.match(/\/\//))            #comentarios //
         estado << "-1"
       elsif(estado.match(/-1/))
-      elsif(s.match(/#(.*?)#/))
-        @autor = s[/#(.*?)#/,1]
+      elsif(line.match(/#(.*?)#/))
+        @autor = line[/#(.*?)#/,1]
       elsif(line.match(/\{(.*?)\}/))
         @titulo = line[/\{(.*?)\}/,1]
       elsif(s.match(/<\d+>/))
-        if(estado == "B" || estado == "D" || estado == "A" || estado == "F" || estado == "H" || estado == "0")
+        if(estado == "B" || estado == "D" || estado == "A" || estado == "F" || estado == "H")
           index = s[/\d+/].to_i
           @escenas[index] = Escena.new
           @escenas[index].contenido << s.partition(">").last << " "
           if(escenasHuerfanas.include?(index)); escenasHuerfanas.delete(index); end
           estado = "A"
           opciones = []
-          buff = ""
+          probabilistico = []
           intervaloMin = 0
           intervaloMax = 0
         else
@@ -177,12 +187,12 @@ def analizador(flujo)
         else
           errores << "[!] los parámetros de '#{s}' están fuera de rango .Línea #{indexl}\n#{line}"
         end
-
       elsif(s.match(/@\d+/))
         dir = s.partition("@").last.to_i
         if(!@escenas.key?(dir) && !escenasHuerfanas.include?(dir)); escenasHuerfanas << dir; end
         if(estado == "A")
           @escenas[index].contenido << s+" "
+          saltosDeterministas << index
           estado = "B"
         elsif(estado == "C")
           opciones[-1][1] = s.partition("@").last.to_i
@@ -216,10 +226,27 @@ def analizador(flujo)
   if(@escenas.length < 1)
     errores << "[!] La historia debe tener al menos una escena\n"
   end
-  puts "Generadas #{@escenas.length} escenas\n\n"
+  #comprobar que no existan bucles
+  visitados = {}
+  saltosDeterministas.collect do |s|
+    visitados[s] = false
+  end
+  buff = ""
+  saltosDeterministas.collect do |s|
+    buff << buscaBucles(s,visitados)
+    if(buff!="")
+      errores << "[!] Bucle formado por las escenas "
+      buff.split.map do |m|
+        errores << "<#{m}>, "
+      end
+      errores << "\n"
+    end
+  end
   if(errores!="")
     puts errores
     errores
+  else
+    puts "Generadas #{@escenas.length} escenas\n\n"
   end
 end
 

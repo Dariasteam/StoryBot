@@ -6,15 +6,16 @@
 //mediante "//" nada de lo que se escriba en la misma línea
 //será analizado
 
-//Las escenas se definen mediante "<x>", dónde x debe ser un número.
+//Las escenas se definen mediante "<x>", dónde x debe ser
+//un número.
 //Siempre debe existir la escena 0
 
 
 <0> Esta es la descripción de la escena 0
     Esto sigue siéndolo, no cambiará hasta
     que aparezca un caracter virgulilla, una
-    arroba o un símbolo de porentaje
-    //(hasta que aparezca '~' , '@' , '%')
+    arroba, un símbolo de porentaje u otra escena
+    //(hasta que aparezca '~' , '@' , '%' , '<x>')
 
     //Las arrobas se emplean para indicar la siguiente
     //escena que se debe mostrar (salto a escena).
@@ -24,6 +25,10 @@
     //todo el contendio en un solo mensaje
 
     @1  //esto produce un salto a las escena 1
+
+    //los saltos pueden encadenarse infinitimante
+    //para atravesar 2 o más escenas seguidas, pero
+    //no se pueden generar bucles
 
 <1> Esta es la descripción de la escena 1
 
@@ -58,11 +63,12 @@
     //en el valor inferior del intervalo siguiente. Así, siguiendo
     //el ejemplo, (2,@0) indica que para los valores contenidos
     //entre 1 , 2 (al ser el primer intervalo que se define su mínimo
-    //es el valor mínimo absoluto: 1) se produce un salto a la escena 0.
+    //es 1) se produce un salto a la escena 0.
     //Si tras esto añadimos (5,@3) significará que si el resultado de
     //está entre 3 (valor máximo del intervalo anterior + 1)
     //y 5 se salta a la escena 3. (6,@4) = saltar a la escena 4 sólo
-    //cuando se obtenga un 6, pues el valor máximo del anterior es 5
+    //cuando se obtenga un 6, pues el valor máximo del
+    //anterior es 5
 
     //Comportamiento de los intervalos:
     //operador      intervalo
