@@ -12,9 +12,9 @@ class Juego                                  #Uno por jugador, emplea la informa
 
   def entrada(command)
     if(@actual!=nil)
-      @actual = @actual.entrada(command)
-      if(@actual!=nil)
-        @actual = @escenas[@actual]
+      aux = @actual.entrada(command)
+      if(aux!=nil)
+        @actual = @escenas[aux]
       else
         nil
       end
