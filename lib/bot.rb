@@ -34,6 +34,7 @@ class ServerBot
 
   def cargarHistorias
     #Carga del fichero master y según lo especificado busca los *.bot
+    aux = ""
     File.read("Historias/master").split.map do |linea|
       if(linea.length > 20)
         aux = linea
