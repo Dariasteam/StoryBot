@@ -196,10 +196,14 @@ class ServerBot
         File.open("Historias/#{@TempHistorias[message.chat.id][1]}.bot", "w") do |f|
           f.write(message.text+"\n")
         end
-        @Historias[@TempHistorias[message.chat.id][1]] = @TempHistorias[message.chat.id]
+        @Historias[@TempHistorias[message.chat.id][1]] = @TempHistorias[message.chat.id][0]
+        answers =
+        Telegram::Bot::Types::ReplyKeyboardMarkup
+        .new(keyboard: [%w(1 2 3 4 5 6 7 8 9)], one_time_keyboard: true)
         bot.api.send_message(
           chat_id: message.chat.id,
-          text: "Has editado la historia correctamente")
+          text: "Has editado la historia correctamente",
+          reply_markup: answers)
         fin = true
       end
     end
