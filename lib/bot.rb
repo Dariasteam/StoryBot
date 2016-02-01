@@ -66,13 +66,15 @@ class ServerBot
   end
 
   def inicio bot, message
-    bot.api.send_message(chat_id: message.chat.id, text: Juego.inicio)
+    keyboard = Telegram::Bot::Types::ReplyKeyboardMarkup.new(keyboard:
+    [[1,2,3]], resize_keyboard: true)
+    bot.api.send_message(chat_id: message.chat.id, text: Juego.inicio, reply_markup: keyboard)
     bot, message = Fiber.yield
     message.text = message.text.delete("/")
     case message.text
     when "1"
       keyboard = Telegram::Bot::Types::ReplyKeyboardMarkup.new(keyboard:
-      (1..inicioHistorias[1]).to_a.each_slice(4).to_a, one_time_keyboard: true)
+      (1..inicioHistorias[1]-1).to_a.each_slice(4).to_a, resize_keyboard: true)
       bot.api.send_message(chat_id: message.chat.id, text: inicioHistorias[0],reply_markup: keyboard)
       bot, message = Fiber.yield
       jugar bot, message
@@ -80,7 +82,8 @@ class ServerBot
       bot.api.send_message(
         chat_id: message.chat.id,
         text: "Enviame un mensaje con el formato siguiente: ")
-      bot.api.send_message(chat_id: message.chat.id, text: Historia.ejemplo)
+      kb = Telegram::Bot::Types::ReplyKeyboardHide.new(hide_keyboard: true)
+      bot.api.send_message(chat_id: message.chat.id, text: Historia.ejemplo, reply_markup: kb)
       bot, message = Fiber.yield
       introducir_historia bot, message
     when "3"
@@ -103,7 +106,7 @@ class ServerBot
       while(!(message.text =~ /start/))     #evita envío de mensaje vacio
           t = juego.mostrar[0]
           keyboard = Telegram::Bot::Types::ReplyKeyboardMarkup.new(keyboard:
-          (1..juego.mostrar[1]).to_a.each_slice(4).to_a, one_time_keyboard: true)
+          (1..juego.mostrar[1]).to_a.each_slice(4).to_a, resize_keyboard: true)
           if(t== nil || t.empty? || t=="")
             t = "#{message.from.first_name}, no tengo ni idea de lo que significa #{message.text}"
           end
@@ -154,8 +157,9 @@ class ServerBot
   end
 
   def modificar_historia bot, message
+    kb = Telegram::Bot::Types::ReplyKeyboardHide.new(hide_keyboard: true)
     puts " ~ @#{message.from.username} ha elegido Modificar Historias"
-    bot.api.send_message(chat_id: message.chat.id, text: "Introduce la clave de la historia")
+    bot.api.send_message(chat_id: message.chat.id, text: "Introduce la clave de la historia", reply_markup: kb)
     fin = false
     while(!fin && !(message.text =~ /start/))
       bot, message = Fiber.yield
