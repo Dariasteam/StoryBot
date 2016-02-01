@@ -62,7 +62,7 @@ class ServerBot
       text << "#{i}\t #{v.titulo}, por #{v.autor} \n"
       i = i + 1
     end
-    text
+    [text,i]
   end
 
   def inicio bot, message
@@ -71,7 +71,9 @@ class ServerBot
     message.text = message.text.delete("/")
     case message.text
     when "1"
-      bot.api.send_message(chat_id: message.chat.id, text: inicioHistorias)
+      keyboard = Telegram::Bot::Types::ReplyKeyboardMarkup.new(keyboard:
+      (1..inicioHistorias[1]).to_a.each_slice(4).to_a, one_time_keyboard: true)
+      bot.api.send_message(chat_id: message.chat.id, text: inicioHistorias[0],reply_markup: keyboard)
       bot, message = Fiber.yield
       jugar bot, message
     when "2"
@@ -99,13 +101,13 @@ class ServerBot
       juego = Juego.new(@Historias[message.text.to_i-1])
       t = ""
       while(!(message.text =~ /start/))     #evita envío de mensaje vacio
-          t = juego.mostrar
+          t = juego.mostrar[0]
+          keyboard = Telegram::Bot::Types::ReplyKeyboardMarkup.new(keyboard:
+          (1..juego.mostrar[1]).to_a.each_slice(4).to_a, one_time_keyboard: true)
           if(t== nil || t.empty? || t=="")
             t = "#{message.from.first_name}, no tengo ni idea de lo que significa #{message.text}"
           end
-            bot.api.send_message(
-              chat_id: message.chat.id,
-              text: t)
+            bot.api.send_message(chat_id: message.chat.id, text: t,reply_markup: keyboard)
           bot, message = Fiber.yield
           message.text = message.text.delete("/")
           juego.entrada(message.text)
@@ -121,7 +123,6 @@ class ServerBot
 
   def introducir_historia bot, message
     puts " ~ @#{message.from.username} ha elegido Crear Historias"
-    aux = ""
     fin = false
     while(!fin && !(message.text =~ /start/))
       @TempHistorias[message.chat.id] = Historia.new(message.text)
@@ -138,12 +139,8 @@ class ServerBot
         key = (0...50).map { ('a'..'z').to_a[rand(26)] }.join
         text = "¡Felicidades! Tu historia ha sido creada correctamente."+
                       "\nGuarda esta clave para poder editarla más adelante: "
-        bot.api.send_message(
-          chat_id: message.chat.id,
-          text: text)
-        bot.api.send_message(
-          chat_id: message.chat.id,
-          text: key)
+        bot.api.send_message(chat_id: message.chat.id, text: text)
+        bot.api.send_message(chat_id: message.chat.id, text: key)
         @hKeyId[key] = @Historias.count
         @Historias << @TempHistorias[message.chat.id]
         guardarClaves
@@ -158,57 +155,41 @@ class ServerBot
 
   def modificar_historia bot, message
     puts " ~ @#{message.from.username} ha elegido Modificar Historias"
-    t = "Introduce la clave de la historia"
+    bot.api.send_message(chat_id: message.chat.id, text: "Introduce la clave de la historia")
     fin = false
     while(!fin && !(message.text =~ /start/))
-      if(@hKeyId[message.text]==nil)
-        bot.api.send_message(
-          chat_id: message.chat.id,
-          text: t)
-          t = "La clave no es correcta, prueba de nuevo"
-      else
-        fin = true
-        break
-      end
       bot, message = Fiber.yield
       message.text = message.text.delete("/")
-    end
-    fin = false
-    bot.api.send_message(
-      chat_id: message.chat.id,
-      text: "Recuperando historia")
-    t = File.read("Historias/#{@hKeyId[message.text]}.bot")
-    bot.api.send_message(
-      chat_id: message.chat.id,
-      text: t)
-    @TempHistorias[message.chat.id] = [nil,@hKeyId[message.text]]
-    while(!fin && !(message.text =~ /start/))
-      bot, message = Fiber.yield
-      @TempHistorias[message.chat.id][0] = Historia.new(message.text)
-      puts "#{message.text}"
-      aux = @TempHistorias[message.chat.id][0].analizador(message.text)
-      if(aux.kind_of? String)
-        bot.api.send_message(
-          chat_id: message.chat.id,
-          text: aux + "\n\n Prueba de nuevo")
+      if(@hKeyId[message.text]==nil)
+        bot.api.send_message(chat_id: message.chat.id, text: "La clave no es correcta, prueba de nuevo")
       else
-        puts " ~ @#{message.from.username} ha editado una historia"
-        File.open("Historias/#{@TempHistorias[message.chat.id][1]}.bot", "w") do |f|
-          f.write(message.text+"\n")
+        bot.api.send_message(chat_id: message.chat.id,text: "Recuperando historia")
+        t = File.read("Historias/#{@hKeyId[message.text]}.bot")
+        bot.api.send_message(chat_id: message.chat.id, text: t)
+        @TempHistorias[message.chat.id] = [nil,@hKeyId[message.text]]
+        while(!fin && !(message.text =~ /start/))
+          bot, message = Fiber.yield
+          @TempHistorias[message.chat.id][0] = Historia.new(message.text)
+          aux = @TempHistorias[message.chat.id][0].analizador(message.text)
+          if(aux.kind_of? String)
+            bot.api.send_message(chat_id: message.chat.id,text: aux + "\n\n Prueba de nuevo")
+          else
+            puts " ~ @#{message.from.username} ha editado una historia"
+            File.open("Historias/#{@TempHistorias[message.chat.id][1]}.bot", "w") do |f|
+              f.write(message.text+"\n")
+            end
+            @Historias[@TempHistorias[message.chat.id][1]] = @TempHistorias[message.chat.id][0]
+            bot.api.send_message(chat_id: message.chat.id,text: "Has editado la historia correctamente")
+            fin = true
+          end
         end
-        @Historias[@TempHistorias[message.chat.id][1]] = @TempHistorias[message.chat.id][0]
-        answers =
-        Telegram::Bot::Types::ReplyKeyboardMarkup
-        .new(keyboard: [%w(1 2 3 4 5 6 7 8 9)], one_time_keyboard: true)
-        bot.api.send_message(
-          chat_id: message.chat.id,
-          text: "Has editado la historia correctamente",
-          reply_markup: answers)
-        fin = true
+        inicio bot, message
       end
     end
     inicio bot, message
   end
+
+
 end
 
 a = ServerBot.new

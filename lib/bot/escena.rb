@@ -27,7 +27,7 @@ class Escena
       end
       mensaje << "@#{@probabilistico[i][2]}"
     end
-    mensaje
+    [mensaje,@opciones.size]   #retorna el número de opciones para el teclado
   end
 
   def addOption(option,probabilistico = [])

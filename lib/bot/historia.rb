@@ -179,6 +179,7 @@ class Historia                              #Una instancia por cada fichero en /
       errores
     else
       puts "Generadas #{@escenas.length} escenas\n\n"
+      true
     end
   end
 

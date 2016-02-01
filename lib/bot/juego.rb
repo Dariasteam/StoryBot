@@ -24,11 +24,11 @@ class Juego                                  #Uno por jugador, emplea la informa
   def mostrar
     if(@actual!= nil)
       texto = @actual.mostrar
-      while(texto.include?("@"))
-        numero = texto[texto.index('@')+1..-1].to_i  # peta
-        texto = texto[0..texto.index('@')-1]
+      while(texto[0].include?("@"))
+        numero = texto[0][texto.index('@')+1..-1].to_i  # peta
+        texto[0] = texto[0][0..texto.index('@')-1]
         @actual = @escenas[numero]
-        texto << "\n#{@actual.mostrar}"
+        texto[0] << "\n#{@actual.mostrar}"
       end
       texto
     end
