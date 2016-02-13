@@ -11,7 +11,6 @@ class ServerBot
     @connections = {} # Hash User/Group Fiber
     @Historias  = []
     @hKeyId  = {}  #Pares key/id de las historias
-    @TempHistorias = {}
     cargarHistorias
     puts " ~ Iniciando el bot"
     token = File.open("telegram.token","r").read.strip
@@ -20,8 +19,8 @@ class ServerBot
         puts " ~ reply #{message.chat.id}"
         if not @connections.key? message.chat.id
           puts " ~ @#{message.from.username} se ha unido"
-          @connections[message.chat.id] = Fiber.new do |bot, message|
-            inicio bot, message
+          @connections[message.chat.id] = Fiber.new do |boti, messagi|
+            inicio boti, messagi
           end
         end
         puts "--> @#{message.from.username} #{message.text}"
@@ -33,7 +32,7 @@ class ServerBot
   end
 
   def cargarHistorias
-    #Carga del fichero master y según lo especificado busca los *.bot
+    #Carga del fichero máster y según lo especificado busca los *.bot
     aux = ""
     File.read("Historias/master").split.map do |linea|
       if(linea.length > 20)
@@ -124,34 +123,41 @@ class ServerBot
     end
   end
 
+  def operaciones_historia bot, message, historia, key
+    if(message.text =~ /start/); return 0; end
+    aux = historia.analizador(message.text)
+    if(aux.kind_of? String)
+      bot.api.send_message(chat_id: message.chat.id, text: aux + "\n\nPrueba de nuevo")
+      return false
+    else
+      File.open("Historias/#{@Historias.size}.bot", "w") do |f|
+        f.write(message.text+"\n")
+      end
+      if(key==nil)                                              #comprobar si editamos o creamos
+        key = (0...50).map { ('a'..'z').to_a[rand(26)] }.join   #crear clave
+        @hKeyId[key] = @Historias.count                         #añadir historia al Hash de claves                                  #añadir historia al Array
+        guardarClaves
+      end
+      @Historias[@hKeyId[key]] = historia
+      return key
+    end
+  end
+
   def introducir_historia bot, message
     puts " ~ @#{message.from.username} ha elegido Crear Historias"
-    fin = false
-    while(!fin && !(message.text =~ /start/))
-      @TempHistorias[message.chat.id] = Historia.new(message.text)
-      aux = @TempHistorias[message.chat.id].analizador(message.text)
-      if(aux.kind_of? String)
-        bot.api.send_message(
-          chat_id: message.chat.id,
-          text: aux + "\n\n Prueba de nuevo")
-      else
-        puts " ~ @#{message.from.username} ha creado una nueva historia"
-        File.open("Historias/#{@Historias.size}.bot", "w") do |f|
-          f.write(message.text+"\n")
-        end
-        key = (0...50).map { ('a'..'z').to_a[rand(26)] }.join
-        text = "¡Felicidades! Tu historia ha sido creada correctamente."+
-                      "\nGuarda esta clave para poder editarla más adelante: "
-        bot.api.send_message(chat_id: message.chat.id, text: text)
-        bot.api.send_message(chat_id: message.chat.id, text: key)
-        @hKeyId[key] = @Historias.count
-        @Historias << @TempHistorias[message.chat.id]
-        guardarClaves
-        fin = true
-        inicio bot, message
-      end
+    key = false
+    key = operaciones_historia bot, message, Historia.new(message.text), nil
+    while(key==false)
       bot, message = Fiber.yield
       message.text = message.text.delete("/")
+      key = operaciones_historia bot, message, Historia.new(message.text), nil
+    end
+    if(key.kind_of? String)
+      puts " ~ @#{message.from.username} ha creado una nueva historia"
+      text = "¡Felicidades! Tu historia ha sido creada correctamente."+
+             "\nGuarda esta clave para poder editarla más adelante: "
+      bot.api.send_message(chat_id: message.chat.id, text: text)
+      bot.api.send_message(chat_id: message.chat.id, text: key)
     end
     inicio bot, message
   end
@@ -160,39 +166,30 @@ class ServerBot
     kb = Telegram::Bot::Types::ReplyKeyboardHide.new(hide_keyboard: true)
     puts " ~ @#{message.from.username} ha elegido Modificar Historias"
     bot.api.send_message(chat_id: message.chat.id, text: "Introduce la clave de la historia", reply_markup: kb)
-    fin = false
-    while(!fin && !(message.text =~ /start/))
+    key = false
+    bot, message = Fiber.yield
+    key = message.text.delete("/")
+    while(@hKeyId[key]==nil && !(message.text =~ /start/))
+      bot.api.send_message(chat_id: message.chat.id, text: "La clave no es correcta, prueba de nuevo")
       bot, message = Fiber.yield
-      message.text = message.text.delete("/")
-      if(@hKeyId[message.text]==nil)
-        bot.api.send_message(chat_id: message.chat.id, text: "La clave no es correcta, prueba de nuevo")
-      else
-        bot.api.send_message(chat_id: message.chat.id,text: "Recuperando historia")
-        t = File.read("Historias/#{@hKeyId[message.text]}.bot")
-        bot.api.send_message(chat_id: message.chat.id, text: t)
-        @TempHistorias[message.chat.id] = [nil,@hKeyId[message.text]]
-        while(!fin && !(message.text =~ /start/))
-          bot, message = Fiber.yield
-          @TempHistorias[message.chat.id][0] = Historia.new(message.text)
-          aux = @TempHistorias[message.chat.id][0].analizador(message.text)
-          if(aux.kind_of? String)
-            bot.api.send_message(chat_id: message.chat.id,text: aux + "\n\n Prueba de nuevo")
-          else
-            puts " ~ @#{message.from.username} ha editado una historia"
-            File.open("Historias/#{@TempHistorias[message.chat.id][1]}.bot", "w") do |f|
-              f.write(message.text+"\n")
-            end
-            @Historias[@TempHistorias[message.chat.id][1]] = @TempHistorias[message.chat.id][0]
-            bot.api.send_message(chat_id: message.chat.id,text: "Has editado la historia correctamente")
-            fin = true
-          end
-        end
-        inicio bot, message
+      key = message.text.delete("/")
+    end
+    if(!(message.text =~ /start/))
+      fin = false
+      bot.api.send_message(chat_id: message.chat.id,text: "Recuperando historia")
+      bot.api.send_message(chat_id: message.chat.id, text: File.read("Historias/#{@hKeyId[message.text]}.bot"))
+      while(fin==false)
+        bot, message = Fiber.yield
+        message.text = message.text.delete("/")
+        fin = operaciones_historia bot, message, Historia.new(message.text), key
+      end
+      if(fin.kind_of? String)
+        puts " ~ @#{message.from.username} ha editado una historia"
+        bot.api.send_message(chat_id: message.chat.id,text: "Has editado la historia correctamente")
       end
     end
     inicio bot, message
   end
-
 
 end
 

@@ -21,17 +21,6 @@ class Historia                              #Una instancia por cada fichero en /
     File.read("Historias/example")
   end
 
-#Innecesario con el nuevo parseador
-
-#  def guardaEscena(numero,escena)
-#    if(!@escenas.key(numero).is_a? Escena)
-#      @escenas[numero]=escena
-#      ""
-#    else
-#      "[!] La escena #{numero} se define dos veces. "
-#    end
-#  end
-
 #Función recursiva para buscar bucles en los saltos deterministas
   def buscaBucles(i,visitadas)
     if(visitadas[i] == false)
@@ -52,8 +41,6 @@ class Historia                              #Una instancia por cada fichero en /
     escenasHuerfanas = []
     saltosDeterministas = []
     @escenas = {}
-    #@autor = nil
-    #@titulo = nil
     estado = "A"
     errores = ""
     index = 0
@@ -145,7 +132,6 @@ class Historia                              #Una instancia por cada fichero en /
       estado = estado.delete("-1")
       indexl = indexl + 1
     end
-    #ultima escena--------------------------------------------------------------------------------------
     #alertas y errores-----------------------------------------------------------------------------------
     if(escenasHuerfanas.size>0)
       errores << "[!] Las escenas #{escenasHuerfanas} son referenciadas pero no están declaradas\n"
@@ -182,5 +168,4 @@ class Historia                              #Una instancia por cada fichero en /
       true
     end
   end
-
 end

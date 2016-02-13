@@ -54,7 +54,7 @@
     //Por ejemplo %6 se comporta como un dado normal de 6
     //caras, donde los resultados posibles están contenidos en [1,6]
 
-    %5    //valores entre 1 y 5
+    %6    //valores entre 1 y 5
 
     //seguidamente, se establece una lista de intervalos de valores
     //con sus saltos asociados mediante la sintaxis "(a,@x)"
